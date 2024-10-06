@@ -342,10 +342,10 @@ Path to the image to install.
 .OUTPUTS
 Paths of the generated screenshot and thumbnail.
 .EXAMPLE
-Install a single image:
+Install a single image into Grand Theft Auto V:
 PS> Install-SteamScreenshot -AppId 271590 -Path folder\to\images\image.png
 .EXAMPLE
-Install all png images from a folder:
+Install all png images from a folder into Grand Theft Auto V:
 PS> Get-ChildItem folder\to\images -Filter *.png | % { Install-SteamScreenshot -AppId 271590 -Path $_.FullName }
 #>
 Function Install-SteamScreenshot {
