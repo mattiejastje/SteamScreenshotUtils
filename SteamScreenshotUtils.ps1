@@ -1,11 +1,12 @@
+Add-Type -AssemblyName System.Drawing
+
+Function SteamCustomScreenshots {
 Param(
   [CmdletBinding()]
   [String]$UserId = "",
   [Parameter(Mandatory)][String]$AppId,
   [Parameter(Mandatory)][ValidateScript({Test-Path $_})][String]$Path
 )
-
-Add-Type -AssemblyName System.Drawing
 
 Write-Host "Checking whether steam is running..."
 [Int32]$steampid = (Get-ItemProperty HKCU:\Software\Valve\Steam\ActiveProcess -ea Stop).pid
@@ -88,4 +89,5 @@ Get-ChildItem -Path $Path -Filter *.jpg | ForEach-Object {
   $size = New-Object System.Drawing.Size $width,$height
   $resized = New-Object System.Drawing.Bitmap $image,$size
   $resized.Save($newthumbnail, [System.Drawing.Imaging.ImageFormat]::Jpeg)
+}
 }
