@@ -1,6 +1,6 @@
 # SteamScreenshotUtils
 
-PowerShell utilities for managing steam screenshots.
+Utilities for managing steam screenshots.
 
 ## Installation and Usage
 
