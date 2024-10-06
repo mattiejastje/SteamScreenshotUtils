@@ -24,7 +24,7 @@ The active user id, or 0 if steam is not running.
 #>
 Function Get-SteamActiveProcessUserId {
   If ( $(Get-SteamActiveProcessPid) -Eq 0 ) {
-    Write-Warning "Steam is not running, no active user."
+    Write-Verbose "Steam is not running, no active user."
   }
   return [Int32](Get-ItemProperty HKCU:\Software\Valve\Steam\ActiveProcess -ea Stop).ActiveUser
 }
@@ -73,7 +73,7 @@ Function Find-SteamUserId {
     return 0
   }
   If ($userids.Length -Ne 1) {
-    Write-Warning "Multiple steam user ids ($($userids -Join ", ")) found."
+    Write-Verbose "Multiple steam user ids ($($userids -Join ", ")) found."
     return 0
   }
   Write-Verbose "Steam user id found ($($userids[0]))."
@@ -127,6 +127,7 @@ All app ids for whose app name matches the regular expression.
 #>
 Function Find-SteamAppIdByName {
   [CmdletBinding()]
+  [OutputType([Int32])]
   Param([Parameter(Mandatory)][String]$Regex)
   Get-ChildItem HKCU:\Software\Valve\Steam\Apps -ea Stop | ForEach-Object {
     $property = Get-ItemProperty $_.PSPath
@@ -234,7 +235,7 @@ The steam app id.
 Screenshots directory.
 #>
 Function Install-SteamScreenshotsDirectory {
-  [CmdletBinding()]
+  [CmdletBinding(SupportsShouldProcess)]
   [OutputType([System.IO.DirectoryInfo])]
   Param(
     [Int32]$UserId = 0,
@@ -251,15 +252,17 @@ Function Install-SteamScreenshotsDirectory {
   Write-Debug "Screenshots path: $screenshots"
   Write-Debug "Thumbnails path: $thumbnails"
   [System.IO.DirectoryInfo]$screenshotsitem = If ( -Not ( Test-Path $screenshots ) ) {
-      Write-Verbose "Creating directory $screenshots"
+    If ( $PSCmdlet.ShouldProcess($screenshots, "create directory") ) {
       New-Item -Path $screenshots -ItemType "directory"
+    }
   }
   Else {
     Get-Item -Path $screenshots
   }
   If ( -not ( Test-Path $thumbnails ) ) {
-    Write-Verbose "Creating directory $thumbnails"
-    New-Item -Path $thumbnails -ItemType "directory"
+    If ( $PSCmdlet.ShouldProcess($thumbnails, "create directory") ) {
+      New-Item -Path $thumbnails -ItemType "directory"
+    }
   }
   return $screenshotsitem
 }
@@ -337,19 +340,16 @@ We use a more sensible algorithm for determining thumbnail dimensions.
 The steam user id.
 .PARAMETER AppId
 The steam app id.
-.PARAMETER Path
-Path to the image to install.
+.INPUTS
+Image items to install.
 .OUTPUTS
-Paths of the generated screenshot and thumbnail.
-.EXAMPLE
-Install a single image into Grand Theft Auto V:
-PS> Install-SteamScreenshot -AppId 271590 -Path folder\to\images\image.png
+Paths of the generated screenshots and thumbnails.
 .EXAMPLE
 Install all png images from a folder into Grand Theft Auto V:
-PS> Get-ChildItem folder\to\images -Filter *.png | % { Install-SteamScreenshot -AppId 271590 -Path $_.FullName }
+PS> Get-Item folder\to\images\*.png | Install-SteamScreenshot -AppId 271590
 #>
 Function Install-SteamScreenshot {
-  [CmdletBinding()]
+  [CmdletBinding(SupportsShouldProcess)]
   [OutputType([String[]])]
   Param(
     [Int32]$MaxWidth = 16000,  # https://github.com/awthwathje/SteaScree/issues/4
@@ -360,7 +360,7 @@ Function Install-SteamScreenshot {
     [Int32]$ThumbnailSize = 144,  # gives 256x144 for 16:9 pictures
     [Int32]$UserId = 0,
     [Parameter(Mandatory)][Int32]$AppId,
-    [Parameter(Mandatory,ValueFromPipeline)][String]$Path
+    [Parameter(Mandatory,ValueFromPipeline)][System.IO.FileInfo]$FileInfo
   )
   Begin {
     Stop-Steam
@@ -368,32 +368,34 @@ Function Install-SteamScreenshot {
     [System.IO.DirectoryInfo]$thumbnails = Get-Item "$screenshots/thumbnails" -ea Stop
   }
   Process {
-    [System.IO.FileInfo]$fileinfo = Get-Item -Path $Path -ea Stop
     Write-Verbose "Loading image"
-    $image = New-Object System.Drawing.Bitmap $Path
-    $newscreenshot = Find-SteamNonExistingScreenshotPath -ScreenshotsDirectory $screenshots -DateTime $fileinfo.LastWriteTime
+    $image = New-Object System.Drawing.Bitmap $FileInfo.FullName
+    $newscreenshot = Find-SteamNonExistingScreenshotPath -ScreenshotsDirectory $screenshots -DateTime $FileInfo.LastWriteTime
     $scale = [Math]::Min(
       [Math]::Min( $MaxWidth / $image.Width, $MaxHeight / $image.Height),
       $MaxResolution / ($image.Width * $image.Height)
     )
     If ( $scale -Ge 1 ) {
-      If  ( $fileinfo.Extension -In @(".jpg", ".jpeg", ".jfif", ".pjpeg", ".pjp") ) {
-        Write-Verbose "Copying image to $newscreenshot"
-        Copy-Item -Path $Path -Destination $newscreenshot
+      If  ( $FileInfo.Extension -In @(".jpg", ".jpeg", ".jfif", ".pjpeg", ".pjp") ) {
+        if ( $PSCmdlet.ShouldProcess($FileInfo.FullName), "copy to $newscreenshot" ) {
+          Copy-Item -Path $FileInfo.FullName -Destination $newscreenshot
+        }
       }
       Else {
-        Write-Verbose "Saving image as $newscreenshot"
-        Save-BitmapAsJpeg -Bitmap $image -Path $newscreenshot -Quality $ConversionQuality
+        if ( $PSCmdlet.ShouldProcess($FileInfo.FullName), "save as $newscreenshot" ) {
+          Save-BitmapAsJpeg -Bitmap $image -Path $newscreenshot -Quality $ConversionQuality
+        }
       }
     }
     Else {
       [Int32]$screenshotwidth = $scale * $image.Width
       [Int32]$screenshotheight = $scale * $image.Height
-      Write-Verbose "Saving resized image as $newscreenshot ($screenshotwidth x $screenshotheight)"
-      $screenshotsize = New-Object System.Drawing.Size $screenshotwidth, $screenshotheight
-      $screenshotresized = New-Object System.Drawing.Bitmap $image, $screenshotsize
-      Save-BitmapAsJpeg -Bitmap $screenshotresized -Path $newscreenshot -Quality $ConversionQuality
-      $screenshotresized.Dispose()
+      if ( $PSCmdlet.ShouldProcess($FileInfo.FullName), "resize to ${screenshotwidth}x$screenshotheight and save as $newscreenshot" ) {
+        $screenshotsize = New-Object System.Drawing.Size $screenshotwidth, $screenshotheight
+        $screenshotresized = New-Object System.Drawing.Bitmap $image, $screenshotsize
+        Save-BitmapAsJpeg -Bitmap $screenshotresized -Path $newscreenshot -Quality $ConversionQuality
+        $screenshotresized.Dispose()
+      }
     }
     Write-Output $newscreenshot
     If ( $image.Width -Gt $image.Height ) {
@@ -404,13 +406,14 @@ Function Install-SteamScreenshot {
       [Int32]$thumbnailwidth = [Math]::Min($ThumbnailSize, $image.Width)
       [Int32]$thumbnailheight = $image.Height * $thumbnailwidth / $image.Width
     }
-    Write-Verbose "Saving thumbnail as $newthumbnail ($thumbnailwidth x $thumbnailheight)"
     $newthumbnail = "$thumbnails\$newname"
-    $size = New-Object System.Drawing.Size $thumbnailwidth, $thumbnailheight
-    $resized = New-Object System.Drawing.Bitmap $image, $size
-    Save-BitmapAsJpeg -Bitmap $resized -Path $newthumbnail -Quality $ThumbnailQuality
+    if ( $PSCmdlet.ShouldProcess($FileInfo.FullName), "resize to ${thumbnailwidth}x$thumbnailheight and save as $newthumbnail" ) {
+      $size = New-Object System.Drawing.Size $thumbnailwidth, $thumbnailheight
+      $resized = New-Object System.Drawing.Bitmap $image, $size
+      Save-BitmapAsJpeg -Bitmap $resized -Path $newthumbnail -Quality $ThumbnailQuality
+      $resized.Dispose()
+    }
     Write-Output $newthumbnail
-    $resized.Dispose()
     $image.Dispose()
   }
 }
