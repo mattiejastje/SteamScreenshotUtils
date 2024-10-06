@@ -10,7 +10,7 @@ Function Get-SteamExe {
 
 Function Stop-Steam {
   [CmdletBinding(SupportsShouldProcess)]
-  param()
+  Param()
   If ( Get-SteamActiveProcessPid -ne 0 ) {
     [String]$steamexe = Get-SteamExe
     if($PSCmdlet.ShouldProcess($steamexe)) {
@@ -124,11 +124,11 @@ Function SteamLargeScreenshots {
         Write-Verbose "  $filename"
         [Int32]$fontsize = [Math]::Min($width, $height) / 2
         $font = new-object System.Drawing.Font "Ariel", $fontsize
-        $brushBg = [System.Drawing.Brushes]::Yellow 
-        $brushFg = [System.Drawing.Brushes]::Black 
-        $graphics = [System.Drawing.Graphics]::FromImage($image) 
-        $graphics.FillRectangle($brushBg, 0, 0, $image.Width, $image.Height) 
-        $graphics.DrawString("$num", $font, $brushFg, ($image.Width - 2 * $fontsize) / 2, ($image.Height - 2 * $fontsize) / 2) 
+        $brushBg = [System.Drawing.Brushes]::Yellow
+        $brushFg = [System.Drawing.Brushes]::Black
+        $graphics = [System.Drawing.Graphics]::FromImage($image)
+        $graphics.FillRectangle($brushBg, 0, 0, $image.Width, $image.Height)
+        $graphics.DrawString("$num", $font, $brushFg, ($image.Width - 2 * $fontsize) / 2, ($image.Height - 2 * $fontsize) / 2)
         $graphics.Dispose()
         $jpegcodec = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -eq "image/jpeg" }
         $encparams = New-Object System.Drawing.Imaging.EncoderParameters(1)
