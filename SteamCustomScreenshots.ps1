@@ -75,12 +75,13 @@ Get-ChildItem -Path $Path -Filter *.jpg | ForEach-Object {
   Move-Item -Path $_ -Destination $newscreenshot
   Write-Host "  Loading image"
   $image = New-Object System.Drawing.Bitmap $newscreenshot
+  $minsize = 112.49  # 200x112 for 16:9 pictures
   If ( $image.Width -Gt $image.Height ) {
-    [Int32]$width = [math]::Min(200, $image.Width)
-    [Int32]$height = $image.Height * $width / $image.Width
-  } Else {
-    [Int32]$height = [math]::Min(200, $image.Height)
+    [Int32]$height = [math]::Min($minsize, $image.Height)
     [Int32]$width = $image.Width * $height / $image.Height
+  } Else {
+    [Int32]$width = [math]::Min($minsize, $image.Width)
+    [Int32]$height = $image.Height * $width / $image.Width
   }
   Write-Host "  Generating $newthumbnail ($width x $height)"
   $newthumbnail = "$thumbnails\$newname"
