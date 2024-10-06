@@ -86,6 +86,5 @@ Get-ChildItem -Path $Path -Filter *.jpg | ForEach-Object {
   $newthumbnail = "$thumbnails\$newname"
   $size = New-Object System.Drawing.Size $width,$height
   $resized = New-Object System.Drawing.Bitmap $image,$size
-  $imageformat = "System.Drawing.Imaging.ImageFormat" -as [Type]
-  $resized.Save($newthumbnail, $imageformat::Jpeg)
+  $resized.Save($newthumbnail, [System.Drawing.Imaging.ImageFormat]::Jpeg)
 }
