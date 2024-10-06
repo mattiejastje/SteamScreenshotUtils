@@ -301,9 +301,9 @@ Install an image file into the steam screenshots folder for a given user and app
 Stops steam before installing any files.
 Inspects the image file and preforms any conversions required.
 If the image is valid for steam
-(i.e. not exceeding dimension and resolution requirements, and jpeg),
+(i.e. a jpeg not exceeding dimension and resolution requirements),
 the image will be simply copied.
-Otherwise, the image will be converted to the correct steam format.
+Otherwise, the image will be converted to the correct format.
 .PARAMETER MaxWidth
 Maximum width of the installed image.
 Steam accepts up to 16000 for upload so this is the default.
@@ -343,10 +343,10 @@ Path to the image to install.
 Paths of the generated screenshot and thumbnail.
 .EXAMPLE
 Install a single image:
-PS> Install-SteamScreenshot -AppId 271590 -Path image.png
+PS> Install-SteamScreenshot -AppId 271590 -Path folder\to\images\image.png
 .EXAMPLE
-Install all images from a folder:
-PS> Get-ChildItem folder\to\images | % { Install-SteamScreenshot -AppId 271590 }
+Install all png images from a folder:
+PS> Get-ChildItem folder\to\images -Filter *.png | % { Install-SteamScreenshot -AppId 271590 -Path $_.FullName }
 #>
 Function Install-SteamScreenshot {
   [CmdletBinding()]
@@ -393,6 +393,7 @@ Function Install-SteamScreenshot {
       $screenshotsize = New-Object System.Drawing.Size $screenshotwidth, $screenshotheight
       $screenshotresized = New-Object System.Drawing.Bitmap $image, $screenshotsize
       Save-BitmapAsJpeg -Bitmap $screenshotresized -Path $newscreenshot -Quality $ConversionQuality
+      $screenshotresized.Dispose()
     }
     Write-Output $newscreenshot
     If ( $image.Width -Gt $image.Height ) {
@@ -409,6 +410,8 @@ Function Install-SteamScreenshot {
     $resized = New-Object System.Drawing.Bitmap $image, $size
     Save-BitmapAsJpeg -Bitmap $resized -Path $newthumbnail -Quality $ThumbnailQuality
     Write-Output $newthumbnail
+    $resized.Dispose()
+    $image.Dispose()
   }
 }
 
