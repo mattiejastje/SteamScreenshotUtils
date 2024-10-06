@@ -5,7 +5,7 @@ $date = Get-Date
 [Int32]$num = 1
 
 ForEach ($resolution In 26210175..26210225) {
-  [Int64]$minwidth = ($resolution / 16000) - 1
+  [Int64]$minwidth = [Math]::Sqrt($resolution) - 1
   [Int64]$maxwidth = 16000
   ForEach ($width In $minwidth..$maxwidth) {
     [Int64]$rem = -1
