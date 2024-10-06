@@ -47,8 +47,8 @@ Function SteamCustomScreenshots {
       throw "No user ids found"
     }
     If ($userids.Length -ne 1) {
-      Write-Host $userids -Join ", "
-      throw "Multiple user ids found, please specify -UserId"
+      $useridsstr = $userids -Join ", "
+      throw "Multiple user ids ($useridsstr) found, please specify -UserId"
     }
     $UserId = $userids[0]
   }
