@@ -1,5 +1,28 @@
 Add-Type -AssemblyName System.Drawing
 
+Function Get-SteamActiveProcessPid {
+  return [Int32](Get-ItemProperty HKCU:\Software\Valve\Steam\ActiveProcess -ea Stop).pid
+}
+
+Function Get-SteamExe {
+  return "$((Get-ItemProperty HKCU:\Software\Valve\Steam\ -ea Stop).SteamExe)".Replace("/", "\")
+}
+
+Function Stop-Steam {
+  Write-Verbose "Checking whether steam is running..."
+  If ( Get-SteamActiveProcessPid -ne 0 ) {
+    Write-Verbose "Steam is running"
+    & $(Get-SteamExe) -shutdown
+    Do {
+      Write-Information "Awaiting steam to exit..."
+      Start-Sleep -s 1
+    } While ( Get-SteamActiveProcessPid -ne 0 )
+  }
+  Else {
+    Write-Verbose "Steam is not running"
+  }
+}
+
 Function SteamCustomScreenshots {
   Param(
     [CmdletBinding()]
@@ -7,28 +30,17 @@ Function SteamCustomScreenshots {
     [Parameter(Mandatory)][String]$AppId,
     [Parameter(Mandatory)][ValidateScript({ Test-Path $_ })][String]$Path
   )
+  Stop-Steam
 
-  Write-Host "Checking whether steam is running..."
-  [Int32]$steampid = (Get-ItemProperty HKCU:\Software\Valve\Steam\ActiveProcess -ea Stop).pid
-  If ( $steampid -ne 0) {
-    Write-Host "Steam is running, awaiting exit..."
-    [String]$steamexe = "$((Get-ItemProperty HKCU:\Software\Valve\Steam\ -ea Stop).SteamExe)".Replace("/", "\")
-    & $steamexe -shutdown
-    Do {
-      Start-Sleep -s 1
-      [Int32]$steampid = (Get-ItemProperty HKCU:\Software\Valve\Steam\ActiveProcess -ea Stop).pid
-    } While ( $steampid -ne 0)
-  }
-
-  Write-Host "Looking up steam path... " -NoNewline
+  Write-Verbose "Looking up steam path... "
   [String]$steampath = "$((Get-ItemProperty HKCU:\Software\Valve\Steam\ -ea Stop).SteamPath)".Replace("/", "\")
-  Write-Host $steampath
+  Write-Verbose $steampath
 
-  Write-Host "Looking up steam game with app id $AppId... " -NoNewline
+  Write-Verbose "Looking up steam game with app id $AppId... "
   [String]$game = (Get-ItemProperty "HKCU:\Software\Valve\Steam\Apps\$AppId" -ea Stop).Name
-  Write-Host $game
+  Write-Verbose $game
 
-  Write-Host "Looking up steam user id... " -NoNewline
+  Write-Verbose "Looking up steam user id... "
   If ($UserId -eq "") {
     [Object[]]$userids = @(Get-ChildItem HKCU:\Software\Valve\Steam\Users -Name -ea Stop)
     If ($userids.Length -eq 0) {
@@ -40,31 +52,31 @@ Function SteamCustomScreenshots {
     }
     $UserId = $userids[0]
   }
-  Write-Host $UserId
+  Write-Verbose $UserId
 
   $userdata = "$steampath\userdata\$userid"
-  Write-Host "Userdata: $userdata"
+  Write-Verbose "Userdata: $userdata"
   If ( -not ( Test-Path $userdata ) ) {
     throw "$userdata not found"
   }
 
   [String]$screenshots = "$userdata\760\remote\$AppId\screenshots"
-  Write-Host "Screenshots: $screenshots"
+  Write-Verbose "Screenshots: $screenshots"
   If ( -not ( Test-Path $screenshots ) ) {
-    Write-Host "  Creating directory..."
+    Write-Information "Creating directory $screenshots"
     New-Item -Path $screenshots -ItemType "directory"
   }
 
   [String]$thumbnails = "$screenshots\thumbnails"
-  Write-Host "Thumbnails: $thumbnails"
+  Write-Verbose "Thumbnails: $thumbnails"
   If ( -not ( Test-Path $thumbnails ) ) {
-    Write-Host "  Creating directory..."
+    Write-Information "Creating directory $thumbnails"
     New-Item -Path $thumbnails -ItemType "directory"
   }
 
-  Write-Host "Processing all *.jpg files from $Path"
+  Write-Verbose "Processing all *.jpg files from $Path"
   Get-ChildItem -Path $Path -Filter *.jpg | ForEach-Object {
-    Write-Host "Processing $_..."
+    Write-Information "Processing $_..."
     [String]$datestr = $_.LastWriteTime.ToString("yyyyMMddHHmmss")
     [Int32]$num = 1
     Do {
@@ -72,9 +84,9 @@ Function SteamCustomScreenshots {
       $newscreenshot = "$screenshots\$newname"
       $num += 1
     } While ( Test-Path $newscreenshot )
-    Write-Host "  Moving to $newscreenshot"
+    Write-Verbose "  Moving to $newscreenshot"
     Move-Item -Path $_ -Destination $newscreenshot
-    Write-Host "  Loading image"
+    Write-Verbose "  Loading image"
     $image = New-Object System.Drawing.Bitmap $newscreenshot
     $minsize = 112.49  # 200x112 for 16:9 pictures
     If ( $image.Width -Gt $image.Height ) {
@@ -85,7 +97,7 @@ Function SteamCustomScreenshots {
       [Int32]$width = [math]::Min($minsize, $image.Width)
       [Int32]$height = $image.Height * $width / $image.Width
     }
-    Write-Host "  Generating $newthumbnail ($width x $height)"
+    Write-Verbose "  Generating $newthumbnail ($width x $height)"
     $newthumbnail = "$thumbnails\$newname"
     $size = New-Object System.Drawing.Size $width, $height
     $resized = New-Object System.Drawing.Bitmap $image, $size
@@ -105,10 +117,10 @@ Function SteamLargeScreenshots {
       [Int64]$rem = -1
       $height = [Math]::DivRem($resolution, $width, [ref] $rem)
       If ($rem -eq 0) {
-        Write-Host "$num -- $width x $height = $resolution"
+        Write-Information "$num $width x $height = $resolution"
         $image = New-Object System.Drawing.Bitmap $width, $height
         $filename = "{0}_{1}.jpg" -f $datestr, $num
-        Write-Host "  $filename"
+        Write-Verbose "  $filename"
         [Int32]$fontsize = [Math]::Min($width, $height) / 2
         $font = new-object System.Drawing.Font "Ariel", $fontsize
         $brushBg = [System.Drawing.Brushes]::Yellow 
