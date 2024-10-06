@@ -207,13 +207,13 @@ Function Install-SteamTestScreenshot {
         $graphics.FillRectangle($brushBg, 0, 0, $image.Width, $image.Height)
         $graphics.DrawString("$num", $font, $brushFg, ($image.Width - $text.Length * $fontsize) / 2, ($image.Height - $fontsize) / 2)
         $graphics.Dispose()
-        Save-Jpeg -Bitmap $image -Path $newscreenshot -Quality 90
+        Save-Jpeg -Bitmap $image -Path $newscreenshot -Quality 20
         Write-Output $newscreenshot
         Write-Verbose "  Saving thumbnail as $newthumbnail ($thumbnailwidth x $thumbnailheight)"
         $newthumbnail = "$thumbnails\$newname"
         $size = New-Object System.Drawing.Size 150, 150
         $resized = New-Object System.Drawing.Bitmap $image, $size
-        Save-Jpeg -Bitmap $resized -Path $newthumbnail -Quality $ThumbnailQuality
+        Save-Jpeg -Bitmap $resized -Path $newthumbnail -Quality 20
         Write-Output $newthumbnail
         Break
       }
