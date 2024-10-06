@@ -9,17 +9,17 @@ Function Get-SteamExe {
 }
 
 Function Stop-Steam {
-  Write-Verbose "Checking whether steam is running..."
+  [CmdletBinding(SupportsShouldProcess)]
+  param()
   If ( Get-SteamActiveProcessPid -ne 0 ) {
-    Write-Verbose "Steam is running"
-    & $(Get-SteamExe) -shutdown
-    Do {
-      Write-Information "Awaiting steam to exit..."
-      Start-Sleep -s 1
-    } While ( Get-SteamActiveProcessPid -ne 0 )
-  }
-  Else {
-    Write-Verbose "Steam is not running"
+    [String]$steamexe = Get-SteamExe
+    if($PSCmdlet.ShouldProcess($steamexe)) {
+      & $steamexe -shutdown
+      Do {
+        Write-Information "Awaiting steam to exit..."
+        Start-Sleep -s 1
+      } While ( Get-SteamActiveProcessPid -ne 0 )
+    }
   }
 }
 
