@@ -95,6 +95,9 @@ Function Confirm-SteamUserId {
   [OutputType([Int32])]
   Param([Int32]$UserId = 0)
   If ( $UserId -Eq 0 ) {
+    $UserId = Get-SteamActiveProcessUserId
+  }
+  If ( $UserId -Eq 0 ) {
     $UserId = Find-SteamUserId
   }
   If ( $UserId -Eq 0 ) {
