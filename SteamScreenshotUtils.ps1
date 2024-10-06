@@ -76,7 +76,7 @@ Function SteamCustomScreenshots {
 
   Write-Verbose "Processing all *.jpg files from $Path"
   Get-ChildItem -Path $Path -Filter *.jpg | ForEach-Object {
-    Write-Information "Processing $_..."
+    Write-Verbose "Processing $_..."
     [String]$datestr = $_.LastWriteTime.ToString("yyyyMMddHHmmss")
     [Int32]$num = 1
     Do {
@@ -102,6 +102,7 @@ Function SteamCustomScreenshots {
     $size = New-Object System.Drawing.Size $width, $height
     $resized = New-Object System.Drawing.Bitmap $image, $size
     $resized.Save($newthumbnail, [System.Drawing.Imaging.ImageFormat]::Jpeg)
+    Write-Output "$_,$newscreenshot,$newthumbnail"
   }
 }
 
