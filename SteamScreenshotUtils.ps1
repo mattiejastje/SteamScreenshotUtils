@@ -205,7 +205,7 @@ Function Install-SteamTestScreenshot {
         $brushFg = [System.Drawing.Brushes]::Black
         $graphics = [System.Drawing.Graphics]::FromImage($image)
         $graphics.FillRectangle($brushBg, 0, 0, $image.Width, $image.Height)
-        $graphics.DrawString("$num", $font, $brushFg, ($image.Width - $text.Length * $fontsize) / 2, ($image.Height - $text.Length * $fontsize) / 2)
+        $graphics.DrawString("$num", $font, $brushFg, ($image.Width - $text.Length * $fontsize) / 2, ($image.Height - $fontsize) / 2)
         $graphics.Dispose()
         Save-Jpeg -Bitmap $image -Path $newscreenshot -Quality 90
         Write-Output $newscreenshot
