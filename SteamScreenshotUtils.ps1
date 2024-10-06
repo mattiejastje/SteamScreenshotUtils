@@ -360,7 +360,7 @@ Function Install-SteamScreenshot {
     [Int32]$ThumbnailSize = 144,  # gives 256x144 for 16:9 pictures
     [Int32]$UserId = 0,
     [Parameter(Mandatory)][Int32]$AppId,
-    [Parameter(Mandatory)][String]$Path
+    [Parameter(Mandatory,ValueFromPipeline)][String]$Path
   )
   Begin {
     Stop-Steam
