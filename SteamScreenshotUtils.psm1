@@ -1,5 +1,9 @@
 Add-Type -AssemblyName System.Drawing
 
+Function Get-SteamRegistryRoot {
+  return "HKCU:\Software\Valve\Steam"
+}
+
 <#
 .SYNOPSIS
 Get the process id of the currently running steam executable.
@@ -10,7 +14,7 @@ Stops if registry key is not present (for instance, if steam is not installed).
 The steam process id, or 0 if steam is not running.
 #>
 Function Get-SteamActiveProcessPid {
-  return [Int32](Get-ItemProperty HKCU:\Software\Valve\Steam\ActiveProcess -ea Stop).pid
+  return [Int32](Get-ItemProperty "$(Get-SteamRegistryRoot)\ActiveProcess" -ea Stop).pid
 }
 
 <#
@@ -26,7 +30,7 @@ Function Get-SteamActiveProcessUserId {
   If ( $(Get-SteamActiveProcessPid) -Eq 0 ) {
     Write-Verbose "Steam is not running, no active user."
   }
-  return [Int32](Get-ItemProperty HKCU:\Software\Valve\Steam\ActiveProcess -ea Stop).ActiveUser
+  return [Int32](Get-ItemProperty "$(Get-SteamRegistryRoot)\ActiveProcess" -ea Stop).ActiveUser
 }
 
 <#
@@ -39,7 +43,7 @@ Stops if registry key is not present (for instance, if steam is not installed).
 The path to the steam executable.
 #>
 Function Get-SteamExe {
-  return "$((Get-ItemProperty HKCU:\Software\Valve\Steam\ -ea Stop).SteamExe)".Replace("/", "\")
+  return "$((Get-ItemProperty $(Get-SteamRegistryRoot) -ea Stop).SteamExe)".Replace("/", "\")
 }
 
 <#
@@ -52,7 +56,7 @@ Stops if registry key is not present (for instance, if steam is not installed).
 The path to the steam installation directory.
 #>
 Function Get-SteamPath {
-  return "$((Get-ItemProperty HKCU:\Software\Valve\Steam\ -ea Stop).SteamPath)".Replace("/", "\")
+  return "$((Get-ItemProperty $(Get-SteamRegistryRoot) -ea Stop).SteamPath)".Replace("/", "\")
 }
 
 <#
@@ -67,7 +71,7 @@ The steam user id, or 0 if there are no or multiple steam users.
 Function Find-SteamUserId {
   [CmdletBinding()]
   [OutputType([Int32])]
-  [Int32[]]$userids = @(Get-ChildItem HKCU:\Software\Valve\Steam\Users -Name -ea Stop)
+  [Int32[]]$userids = @(Get-ChildItem "$(Get-SteamRegistryRoot)\Users" -Name -ea Stop)
   If ($userids.Length -Eq 0) {
     Write-Warning "No steam user ids found."
     return 0
@@ -105,7 +109,7 @@ Function Confirm-SteamUserId {
   If ( $UserId -Eq 0 ) {
     Throw "Start steam and run Get-SteamActiveProcessUserId to get your steam user id. Then rerun the script with the -UserId <...> parameter."
   }
-  If ( -Not ( Test-Path "HKCU:\Software\Valve\Steam\Users\$UserId" ) ) {
+  If ( -Not ( Test-Path "$(Get-SteamRegistryRoot)\Users\$UserId" ) ) {
     Throw "Cannot find steam user with id '$UserId' in registry."
   }
   return $UserId
@@ -124,15 +128,21 @@ Use the -Verbose flag to see the full names of the apps that have been matched.
 Regular expression to match the name to.
 .OUTPUTS
 All app ids for whose app name matches the regular expression.
+.EXAMPLE
+PS> Find-SteamAppIdByName "hellblade" -Verbose
+VERBOSE: Senua’s Saga: Hellblade II
+2461850
+VERBOSE: Hellblade: Senua's Sacrifice
+414340
 #>
 Function Find-SteamAppIdByName {
   [CmdletBinding()]
   [OutputType([Int32])]
   Param([Parameter(Mandatory)][String]$Regex)
-  Get-ChildItem HKCU:\Software\Valve\Steam\Apps -ea Stop | ForEach-Object {
+  Get-ChildItem "$(Get-SteamRegistryRoot)\Apps" -ea Stop | ForEach-Object {
     $property = Get-ItemProperty $_.PSPath
     If ( $property.Name -Match $Regex) {
-      Write-Verbose $name
+      Write-Verbose $property.Name
       return [Int32]($property.PSChildName)
     }
   }
@@ -148,7 +158,7 @@ Stops if registry key is not present (for instance, if steam is not installed).
 Function Confirm-SteamAppId {
   [CmdletBinding()]
   Param([Parameter(Mandatory)][Int32]$AppId)
-  If ( -Not ( Test-Path "HKCU:\Software\Valve\Steam\Apps\$AppId" ) ) {
+  If ( -Not ( Test-Path "$(Get-SteamRegistryRoot)\Apps\$AppId" ) ) {
     Throw "Cannot find steam app with id '$AppId' in registry."
   }
 }
@@ -164,7 +174,7 @@ Function Stop-Steam {
   Param()
   If ( $(Get-SteamActiveProcessPid) -Ne 0 ) {
     [String]$steamexe = Get-SteamExe
-    if($PSCmdlet.ShouldProcess($steamexe)) {
+    if ($PSCmdlet.ShouldProcess($steamexe)) {
       & $steamexe -shutdown
       Do {
         Write-Verbose "Awaiting steam shutdown..."
@@ -185,7 +195,7 @@ Function Start-Steam {
   Param()
   If ( $(Get-SteamActiveProcessPid) -Eq 0 ) {
     [String]$steamexe = Get-SteamExe
-    if($PSCmdlet.ShouldProcess($steamexe)) {
+    if ($PSCmdlet.ShouldProcess($steamexe)) {
       & $steamexe
       Do {
         Write-Verbose "Awaiting steam start..."
@@ -352,15 +362,15 @@ Function Install-SteamScreenshot {
   [CmdletBinding(SupportsShouldProcess)]
   [OutputType([String[]])]
   Param(
-    [Int32]$MaxWidth = 16000,  # https://github.com/awthwathje/SteaScree/issues/4
-    [Int32]$MaxHeight = 16000,  # https://github.com/awthwathje/SteaScree/issues/4
-    [Int32]$MaxResolution = 26210175,  # https://github.com/awthwathje/SteaScree/issues/4
-    [Int32]$ConversionQuality = 90,  # seems to be steam default according to "magick identify -verbose"
-    [Int32]$ThumbnailQuality = 95,  # seems to be steam default according to "magick identify -verbose"
-    [Int32]$ThumbnailSize = 144,  # gives 256x144 for 16:9 pictures
+    [Int32]$MaxWidth = 16000, # https://github.com/awthwathje/SteaScree/issues/4
+    [Int32]$MaxHeight = 16000, # https://github.com/awthwathje/SteaScree/issues/4
+    [Int32]$MaxResolution = 26210175, # https://github.com/awthwathje/SteaScree/issues/4
+    [Int32]$ConversionQuality = 90, # seems to be steam default according to "magick identify -verbose"
+    [Int32]$ThumbnailQuality = 95, # seems to be steam default according to "magick identify -verbose"
+    [Int32]$ThumbnailSize = 144, # gives 256x144 for 16:9 pictures
     [Int32]$UserId = 0,
     [Parameter(Mandatory)][Int32]$AppId,
-    [Parameter(Mandatory,ValueFromPipeline)][System.IO.FileInfo]$FileInfo
+    [Parameter(Mandatory, ValueFromPipeline)][System.IO.FileInfo]$FileInfo
   )
   Begin {
     Stop-Steam
@@ -376,7 +386,7 @@ Function Install-SteamScreenshot {
       $MaxResolution / ($image.Width * $image.Height)
     )
     If ( $scale -Ge 1 ) {
-      If  ( $FileInfo.Extension -In @(".jpg", ".jpeg", ".jfif", ".pjpeg", ".pjp") ) {
+      If ( $FileInfo.Extension -In @(".jpg", ".jpeg", ".jfif", ".pjpeg", ".pjp") ) {
         if ( $PSCmdlet.ShouldProcess($FileInfo.FullName), "copy to $newscreenshot" ) {
           Copy-Item -Path $FileInfo.FullName -Destination $newscreenshot
         }
