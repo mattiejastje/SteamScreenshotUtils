@@ -17,13 +17,13 @@ even though unlikely, there's always a chance that something breaks.
 
 ## Features
 
-- Install screenshots in the expected locations for steam to find them.
+- Installs screenshots in the expected locations for steam to find them.
   Will not touch your screenshot database, lessening the risk of database corruption.
 
-- Stop steam before installing screenshots, lessening the risk of database corruption.
+- Automatically stops steam before installing screenshots, lessening the risk of database corruption.
 
 - Support for "what if" and "confirm" modes:
-  every action can be individually confirmed if so desired.
+  you can do a dry run, and every action can be individually confirmed if so desired.
 
 - Highly configurable.
 
