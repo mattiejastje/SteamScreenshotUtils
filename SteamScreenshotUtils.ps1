@@ -298,6 +298,7 @@ Function Find-SteamNonExistingScreenshotPath {
 .SYNOPSIS
 Install an image file into the steam screenshots folder for a given user and app.
 .DESCRIPTION
+Stops steam before installing any files.
 Inspects the image file and preforms any conversions required.
 If the image is valid for steam
 (i.e. not exceeding dimension and resolution requirements, and jpeg),
@@ -340,6 +341,12 @@ The steam app id.
 Path to the image to install.
 .OUTPUTS
 Paths of the generated screenshot and thumbnail.
+.EXAMPLE
+Install a single image:
+PS> Install-SteamScreenshot -AppId 271590 -Path image.png
+.EXAMPLE
+Install all images from a folder:
+PS> Get-ChildItem folder\to\images | % { Install-SteamScreenshot -AppId 271590 }
 #>
 Function Install-SteamScreenshot {
   [CmdletBinding()]
@@ -352,7 +359,7 @@ Function Install-SteamScreenshot {
     [Int32]$ThumbnailQuality = 95,  # seems to be steam default according to "magick identify -verbose"
     [Int32]$ThumbnailSize = 144,  # gives 256x144 for 16:9 pictures
     [Int32]$UserId = 0,
-    [Parameter(Mandatory)][String]$AppId,
+    [Parameter(Mandatory)][Int32]$AppId,
     [Parameter(Mandatory)][String]$Path
   )
   Begin {
@@ -361,18 +368,18 @@ Function Install-SteamScreenshot {
     [System.IO.DirectoryInfo]$thumbnails = Get-Item "$screenshots/thumbnails" -ea Stop
   }
   Process {
-    [System.IO.FileInfo]$file = Get-Item -Path $Path
+    [System.IO.FileInfo]$fileinfo = Get-Item -Path $Path -ea Stop
     Write-Verbose "Loading image"
-    $image = New-Object System.Drawing.Bitmap $FilePath
-    $newscreenshot = Find-SteamNonExistingScreenshotPath -ScreenshotsDirectory $screenshots -DateTime $file.LastWriteTime
+    $image = New-Object System.Drawing.Bitmap $Path
+    $newscreenshot = Find-SteamNonExistingScreenshotPath -ScreenshotsDirectory $screenshots -DateTime $fileinfo.LastWriteTime
     $scale = [Math]::Min(
       [Math]::Min( $MaxWidth / $image.Width, $MaxHeight / $image.Height),
       $MaxResolution / ($image.Width * $image.Height)
     )
     If ( $scale -Ge 1 ) {
-      If  ( $FilePath.Extension -In @(".jpg", ".jpeg", ".jfif", ".pjpeg", ".pjp") ) {
+      If  ( $fileinfo.Extension -In @(".jpg", ".jpeg", ".jfif", ".pjpeg", ".pjp") ) {
         Write-Verbose "Copying image to $newscreenshot"
-        Copy-Item -Path $FilePath -Destination $newscreenshot
+        Copy-Item -Path $Path -Destination $newscreenshot
       }
       Else {
         Write-Verbose "Saving image as $newscreenshot"
