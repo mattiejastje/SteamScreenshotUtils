@@ -87,6 +87,8 @@ Confirm and return a valid steam user id.
 Attempts to find user id if none is specified.
 Checks the user id against the registry.
 Stops if registry key is not present (for instance, if steam is not installed).
+.PARAMETER UserId
+Steam user id to confirm, or 0 to try to find it automatically.
 .OUTPUTS
 A valid steam user id.
 #>
@@ -159,14 +161,14 @@ Stop steam and wait until the process is no longer running.
 Function Stop-Steam {
   [CmdletBinding(SupportsShouldProcess)]
   Param()
-  If ( Get-SteamActiveProcessPid -Ne 0 ) {
+  If ( $(Get-SteamActiveProcessPid) -Ne 0 ) {
     [String]$steamexe = Get-SteamExe
     if($PSCmdlet.ShouldProcess($steamexe)) {
       & $steamexe -shutdown
       Do {
         Write-Verbose "Awaiting steam shutdown..."
         Start-Sleep -S 1
-      } While ( Get-SteamActiveProcessPid -Ne 0 )
+      } While ( $(Get-SteamActiveProcessPid) -Ne 0 )
     }
   }
 }
@@ -180,14 +182,14 @@ Start steam and wait until the process is running.
 Function Start-Steam {
   [CmdletBinding(SupportsShouldProcess)]
   Param()
-  If ( Get-SteamActiveProcessPid -Eq 0 ) {
+  If ( $(Get-SteamActiveProcessPid) -Eq 0 ) {
     [String]$steamexe = Get-SteamExe
     if($PSCmdlet.ShouldProcess($steamexe)) {
       & $steamexe
       Do {
         Write-Verbose "Awaiting steam start..."
         Start-Sleep -S 1
-      } While ( Get-SteamActiveProcessPid -Eq 0 )
+      } While ( $(Get-SteamActiveProcessPid) -Eq 0 )
     }
   }
 }
@@ -219,6 +221,18 @@ Function Save-BitmapAsJpeg {
   $Bitmap.Save($Path, $codec, $params)
 }
 
+<#
+.SYNOPSIS
+Install a steam screenshots directory for given user and app.
+.DESCRIPTION
+Directory for screenshots and thumbnails will be created if they do not exist.
+.PARAMETER UserId
+The steam user id.
+.PARAMETER AppId
+The steam app id.
+.OUTPUTS
+Screenshots directory.
+#>
 Function Install-SteamScreenshotsDirectory {
   [CmdletBinding()]
   [OutputType([System.IO.DirectoryInfo])]
@@ -250,7 +264,21 @@ Function Install-SteamScreenshotsDirectory {
   return $screenshotsitem
 }
 
-Function Find-SteamUnusedScreenshotFilePath {
+<#
+.SYNOPSIS
+Find an unused steam screenshot file path.
+.DESCRIPTION
+Converts the given date and time to the format that steam expects.
+Then, tests if the path already exists,
+incrementing the counter part of the screenshot name until a non-existing path is found.
+.PARAMETER ScreenshotsDirectory
+A steam screenshots directory.
+.PARAMETER DateTime
+The date and time of the screenshot to be created.
+.OUTPUTS
+Unused path to a screenshot using steam screenshot naming conventions.
+#>
+Function Find-SteamNonExistingScreenshotPath {
   [CmdletBinding()]
   [OutputType([String])]
   Param(
@@ -266,8 +294,56 @@ Function Find-SteamUnusedScreenshotFilePath {
   return $path
 }
 
+<#
+.SYNOPSIS
+Install an image file into the steam screenshots folder for a given user and app.
+.DESCRIPTION
+Inspects the image file and preforms any conversions required.
+If the image is valid for steam
+(i.e. not exceeding dimension and resolution requirements, and jpeg),
+the image will be simply copied.
+Otherwise, the image will be converted to the correct steam format.
+.PARAMETER MaxWidth
+Maximum width of the installed image.
+Steam accepts up to 16000 for upload so this is the default.
+You can adjust this if you want higher dimensions in your screenshots library,
+however you will be unable to upload these.
+.PARAMETER MaxHeight
+Maximum height of the installed image.
+Steam accepts up to 16000 for upload so this is the default.
+You can adjust this if you want higher dimensions in your screenshots library,
+however you will be unable to upload these.
+.PARAMETER MaxResolution
+Maximum resolution (width times height) of the installed image.
+Steam accepts up to about 26210175 for upload so this is the default.
+You can adjust this if you want higher resolutions in your screenshots library,
+however you will be unable to upload these.
+.PARAMETER ConversionQuality
+Jpeg quality of the image, if it needs to be converted due to not incorrect format.
+Steam takes screenshots with quality 90, and this is the default.
+.PARAMETER ThumbnailQuality
+Jpeg quality of the generated thumbnail.
+Steam creates thumbnails with quality 95, and this is the default.
+.PARAMETER ThumbnailSize
+Size of thumbnails.
+The generated thumbnails will a width or height equal to this number,
+whichever is smallest.
+Defaults to 144.
+Note that steam creates thumbnails with a fixed width of 200,
+but this sometimes leads to extremely pixelated thumbnails at very high aspect ratios.
+We use a more sensible algorithm for determining thumbnail dimensions.
+.PARAMETER UserId
+The steam user id.
+.PARAMETER AppId
+The steam app id.
+.PARAMETER Path
+Path to the image to install.
+.OUTPUTS
+Paths of the generated screenshot and thumbnail.
+#>
 Function Install-SteamScreenshot {
   [CmdletBinding()]
+  [OutputType([String[]])]
   Param(
     [Int32]$MaxWidth = 16000,  # https://github.com/awthwathje/SteaScree/issues/4
     [Int32]$MaxHeight = 16000,  # https://github.com/awthwathje/SteaScree/issues/4
@@ -288,7 +364,7 @@ Function Install-SteamScreenshot {
     [System.IO.FileInfo]$file = Get-Item -Path $Path
     Write-Verbose "Loading image"
     $image = New-Object System.Drawing.Bitmap $FilePath
-    $newscreenshot = Find-SteamUnusedScreenshotFilePath -ScreenshotsDirectory $screenshots -DateTime $file.LastWriteTime
+    $newscreenshot = Find-SteamNonExistingScreenshotPath -ScreenshotsDirectory $screenshots -DateTime $file.LastWriteTime
     $scale = [Math]::Min(
       [Math]::Min( $MaxWidth / $image.Width, $MaxHeight / $image.Height),
       $MaxResolution / ($image.Width * $image.Height)
@@ -329,8 +405,22 @@ Function Install-SteamScreenshot {
   }
 }
 
+<#
+.SYNOPSIS
+Find a size for given resolution.
+.DESCRIPTION
+Find a size that matches exactly, or if not possible, closely, the given resolution.
+Meant to assist with testing steam upload limits.
+.PARAMETER MaxWidth
+The maximum width to consider.
+.PARAMETER Resolution
+The desired resolution.
+.OUTPUTS
+Size (i.e. width and height).
+#>
 Function Find-SizeForResolution {
   [CmdletBinding()]
+  [OutputType([System.Drawing.Size])]
   Param(
     [Int32]$MaxWidth = 16000,
     [Int32]$Resolution
@@ -350,8 +440,23 @@ Function Find-SizeForResolution {
   return $size
 }
 
+<#
+.SYNOPSIS
+Save test jpeg file for given size.
+.DESCRIPTION
+For identification, the image shows its size and resolution.
+.PARAMETER Quality
+The jpeg quality. Defaults at 0 for minimal size.
+.PARAMETER Size
+Desired file size.
+.PARAMETER Path
+Name of the file to save.
+.OUTPUTS
+The saved file path.
+#>
 Function Save-TestJpegForSize {
   [CmdletBinding()]
+  [OutputType([String])]
   Param(
     [Int32]$Quality = 0,
     [Parameter(Mandatory)][System.Drawing.Size]$Size,
@@ -372,14 +477,32 @@ Function Save-TestJpegForSize {
   Write-Output $Path
 }
 
+<#
+.SYNOPSIS
+Save test jpeg file for given resolution, if possible.
+.DESCRIPTION
+For identification, the image shows its size and resolution.
+.PARAMETER Quality
+The jpeg quality. Defaults at 0 for minimal size.
+.PARAMETER MaxWidth
+The maximum width to consider.
+.PARAMETER Resolution
+The desired resolution.
+.PARAMETER Path
+Name of the file to save.
+.OUTPUTS
+The saved file path if resolution was possible, otherwise nothing.
+#>
 Function Save-TestJpegForResolution {
   [CmdletBinding()]
+  [OutputType([String])]
   Param(
     [Int32]$Quality = 0,
+    [Int32]$MaxWidth = 16000,
     [Parameter(Mandatory)][Int32]$Resolution,
     [Parameter(Mandatory)][String]$Path
   )
-  [System.Drawing.Size]$size = Find-SizeForResolution -MaxWidth 16000 -Resolution $Resolution
+  [System.Drawing.Size]$size = Find-SizeForResolution -MaxWidth $MaxWidth -Resolution $Resolution
   If ( $size.Width * $size.Height -Eq $Resolution ) {
     Save-TestJpegForSize -Size $size -Path $Path -Quality $Quality
   }
