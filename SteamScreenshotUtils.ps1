@@ -26,7 +26,7 @@ Function Get-SteamUserId {
     Write-Warning "Multiple steam user ids ($($userids -Join ", ")) found."
     return 0
   }
-  Write-Verbose "Single steam user id found ($(userids[0]))."
+  Write-Verbose "Steam user id found ($($userids[0]))."
   return $userids[0]
 }
 
