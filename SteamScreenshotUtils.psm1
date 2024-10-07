@@ -1,7 +1,7 @@
 Add-Type -AssemblyName System.Drawing
 
 Function Get-SteamRegistryRoot {
-  return "HKCU:\Software\Valve\Steam"
+  Return "HKCU:\Software\Valve\Steam"
 }
 
 <#
@@ -13,8 +13,8 @@ Stops if registry key is not present (for instance, if steam is not installed).
 .OUTPUTS
 The steam process id, or 0 if steam is not running.
 #>
-Function Get-SteamActiveProcessPid {
-  return [Int32](Get-ItemProperty "$(Get-SteamRegistryRoot)\ActiveProcess" -ea Stop).pid
+Function Get-SteamActiveProcessId {
+  Return [Int32](Get-ItemProperty "$(Get-SteamRegistryRoot)\ActiveProcess" -ea Stop).pid
 }
 
 <#
@@ -26,11 +26,8 @@ Stops if registry key is not present (for instance, if steam is not installed).
 .OUTPUTS
 The active user id, or 0 if steam is not running.
 #>
-Function Get-SteamActiveProcessUserId {
-  If ( $(Get-SteamActiveProcessPid) -Eq 0 ) {
-    Write-Verbose "Steam is not running, no active user."
-  }
-  return [Int32](Get-ItemProperty "$(Get-SteamRegistryRoot)\ActiveProcess" -ea Stop).ActiveUser
+Function Get-SteamActiveUserId {
+  Return [Int32](Get-ItemProperty "$(Get-SteamRegistryRoot)\ActiveProcess" -ea Stop).ActiveUser
 }
 
 <#
@@ -43,7 +40,7 @@ Stops if registry key is not present (for instance, if steam is not installed).
 The path to the steam executable.
 #>
 Function Get-SteamExe {
-  return "$((Get-ItemProperty $(Get-SteamRegistryRoot) -ea Stop).SteamExe)".Replace("/", "\")
+  Return "$((Get-ItemProperty $(Get-SteamRegistryRoot) -ea Stop).SteamExe)".Replace("/", "\")
 }
 
 <#
@@ -56,63 +53,32 @@ Stops if registry key is not present (for instance, if steam is not installed).
 The path to the steam installation directory.
 #>
 Function Get-SteamPath {
-  return "$((Get-ItemProperty $(Get-SteamRegistryRoot) -ea Stop).SteamPath)".Replace("/", "\")
+  Return "$((Get-ItemProperty $(Get-SteamRegistryRoot) -ea Stop).SteamPath)".Replace("/", "\")
 }
 
 <#
 .SYNOPSIS
-Find steam user id in case there is exactly one user using steam.
+Get all steam user ids.
 .DESCRIPTION
-Fetches the user id using the registry.
-Stops if registry key is not present (for instance, if steam is not installed).
+Fetches the user ids from the registry.
 .OUTPUTS
-The steam user id, or 0 if there are no or multiple steam users.
+The user ids.
 #>
-Function Find-SteamUserId {
-  [CmdletBinding()]
-  [OutputType([Int32])]
-  [Int32[]]$userids = @(Get-ChildItem "$(Get-SteamRegistryRoot)\Users" -Name -ea Stop)
-  If ($userids.Length -Eq 0) {
-    Write-Warning "No steam user ids found."
-    return 0
-  }
-  If ($userids.Length -Ne 1) {
-    Write-Verbose "Multiple steam user ids ($($userids -Join ", ")) found."
-    return 0
-  }
-  Write-Verbose "Steam user id found ($($userids[0]))."
-  return $userids[0]
+Function Get-SteamUserIds {
+  Get-Item "$(Get-SteamRegistryRoot)\Users" -ea Stop | Out-Null
+  Return [Int32[]]@(Get-ChildItem "$(Get-SteamRegistryRoot)\Users" -Name -ea Stop)
 }
 
 <#
 .SYNOPSIS
-Confirm and return a valid steam user id.
+Test steam user id.
 .DESCRIPTION
-Attempts to find user id if none is specified.
-Checks the user id against the registry.
-Stops if registry key is not present (for instance, if steam is not installed).
-.PARAMETER UserId
-Steam user id to confirm, or 0 to try to find it automatically.
-.OUTPUTS
-A valid steam user id.
+Test whether steam user id exists in the registry.
 #>
-Function Confirm-SteamUserId {
-  [CmdletBinding()]
-  [OutputType([Int32])]
-  Param([Int32]$UserId = 0)
-  If ( $UserId -Eq 0 ) {
-    $UserId = Get-SteamActiveProcessUserId
-  }
-  If ( $UserId -Eq 0 ) {
-    $UserId = Find-SteamUserId
-  }
-  If ( $UserId -Eq 0 ) {
-    Throw "Start steam and run Get-SteamActiveProcessUserId to get your steam user id. Then rerun the script with the -UserId <...> parameter."
-  }
-  If ( -Not ( Test-Path "$(Get-SteamRegistryRoot)\Users\$UserId" ) ) {
-    Throw "Cannot find steam user with id '$UserId' in registry."
-  }
-  return $UserId
+Function Test-SteamUserId {
+  Param([Parameter(Mandatory)][Int32]$UserId)
+  Get-Item "$(Get-SteamRegistryRoot)\Users" -ea Stop | Out-Null
+  Return Test-Path "$(Get-SteamRegistryRoot)\Users\$UserId"
 }
 
 <#
@@ -143,24 +109,22 @@ Function Find-SteamAppIdByName {
     $property = Get-ItemProperty $_.PSPath
     If ( $property.Name -Match $Regex) {
       Write-Verbose $property.Name
-      return [Int32]($property.PSChildName)
+      Return [Int32]($property.PSChildName)
     }
   }
 }
 
 <#
 .SYNOPSIS
-Confirm steam app id.
+Test steam app id.
 .DESCRIPTION
-Checks the app id against the registry.
-Stops if registry key is not present (for instance, if steam is not installed).
+Test whether steam app id exists in the registry.
 #>
-Function Confirm-SteamAppId {
+Function Test-SteamAppId {
   [CmdletBinding()]
   Param([Parameter(Mandatory)][Int32]$AppId)
-  If ( -Not ( Test-Path "$(Get-SteamRegistryRoot)\Apps\$AppId" ) ) {
-    Throw "Cannot find steam app with id '$AppId' in registry."
-  }
+  Get-Item "$(Get-SteamRegistryRoot)\Apps" -ea Stop | Out-Null
+  Return Test-Path "$(Get-SteamRegistryRoot)\Apps\$AppId"
 }
 
 <#
@@ -172,14 +136,14 @@ Stop steam and wait until the process is no longer running.
 Function Stop-Steam {
   [CmdletBinding(SupportsShouldProcess)]
   Param()
-  If ( $(Get-SteamActiveProcessPid) -Ne 0 ) {
+  If ( $(Get-SteamActiveProcessId) -Ne 0 ) {
     [String]$steamexe = Get-SteamExe
     if ($PSCmdlet.ShouldProcess($steamexe)) {
       & $steamexe -shutdown
       Do {
         Write-Verbose "Awaiting steam shutdown..."
         Start-Sleep -S 1
-      } While ( $(Get-SteamActiveProcessPid) -Ne 0 )
+      } While ( $(Get-SteamActiveProcessId) -Ne 0 )
     }
   }
 }
@@ -193,14 +157,14 @@ Start steam and wait until the process is running.
 Function Start-Steam {
   [CmdletBinding(SupportsShouldProcess)]
   Param()
-  If ( $(Get-SteamActiveProcessPid) -Eq 0 ) {
+  If ( $(Get-SteamActiveProcessId) -Eq 0 ) {
     [String]$steamexe = Get-SteamExe
     if ($PSCmdlet.ShouldProcess($steamexe)) {
       & $steamexe
       Do {
         Write-Verbose "Awaiting steam start..."
         Start-Sleep -S 1
-      } While ( $(Get-SteamActiveProcessPid) -Eq 0 )
+      } While ( $(Get-SteamActiveProcessId) -Eq 0 )
     }
   }
 }
@@ -248,11 +212,9 @@ Function Install-SteamScreenshotsDirectory {
   [CmdletBinding(SupportsShouldProcess)]
   [OutputType([System.IO.DirectoryInfo])]
   Param(
-    [Int32]$UserId = 0,
-    [Parameter(Mandatory)][Int32]$AppId
+    [Parameter(Mandatory)][ValidateScript({ Test-SteamUserId $_ })][Int32]$UserId,
+    [Parameter(Mandatory)][ValidateScript({ Test-SteamAppId $_ })][Int32]$AppId
   )
-  $UserId = Confirm-SteamUserId $UserId
-  Confirm-SteamAppId $AppId
   [String]$userdata = "$(Get-SteamPath)\userdata\$UserId"
   If ( -Not ( Test-Path $userdata ) ) {
     Throw "Cannot find steam path '$userdata' because it does not exist."
@@ -274,7 +236,7 @@ Function Install-SteamScreenshotsDirectory {
       New-Item -Path $thumbnails -ItemType "directory"
     }
   }
-  return $screenshotsitem
+  Return $screenshotsitem
 }
 
 <#
@@ -304,7 +266,7 @@ Function Find-SteamNonExistingScreenshotPath {
     $name = "{0}_{1}.jpg" -f $datestr, $num++
     $path = "$ScreenshotsDirectory\$name"
   } While ( Test-Path $path )
-  return $path
+  Return $path
 }
 
 <#
@@ -368,8 +330,8 @@ Function Install-SteamScreenshot {
     [Int32]$ConversionQuality = 90, # seems to be steam default according to "magick identify -verbose"
     [Int32]$ThumbnailQuality = 95, # seems to be steam default according to "magick identify -verbose"
     [Int32]$ThumbnailSize = 144, # gives 256x144 for 16:9 pictures
-    [Int32]$UserId = 0,
-    [Parameter(Mandatory)][Int32]$AppId,
+    [Parameter(Mandatory)][ValidateScript({ Test-SteamUserId $_ })][Int32]$UserId,
+    [Parameter(Mandatory)][ValidateScript({ Test-SteamAppId $_ })][Int32]$AppId,
     [Parameter(Mandatory, ValueFromPipeline)][System.IO.FileInfo]$FileInfo
   )
   Begin {
@@ -454,13 +416,13 @@ Function Find-SizeForResolution {
     $height = [Math]::DivRem($Resolution, $width, [ref] $rem)
     If ($rem -eq 0) {
       $size = New-Object System.Drawing.Size $width, $height
-      return $size
+      Return $size
     }
   }
   Write-Warning "No size for resolution $Resolution with width between $minwidth and $MaxWidth."
   $height = [Math]::DivRem($Resolution, $minwidth, [ref] $null)
   $size = New-Object System.Drawing.Size $minwidth, $height
-  return $size
+  Return $size
 }
 
 <#
