@@ -6,11 +6,12 @@ BeforeAll {
     
     Function Install-MockSteam {
         Param(
-            [Int32]$ProcessId = 0,
+            [Int32]$ProcessId = 1,
             [Int32[]]$AppIds = @(),
-            [Int32[]]$UserIds = @()
+            [Int32[]]$UserIds = @(),
+            [Switch]$Running = $false
         )
-        [Int32]$activeuserid = If ( $ProcessId -And $UserIds.Length ) { $UserIds[0] } Else { 0 }
+        [Int32]$activeuserid = If ( $UserIds.Length ) { $UserIds[0] } Else { 0 }
         New-Item TestRegistry:\Steam
         New-ItemProperty -Path TestRegistry:\Steam -Name "SteamPath" -Value "TestDrive:/steam"
         New-ItemProperty -Path TestRegistry:\Steam -Name "SteamExe" -Value "TestDrive:/steam/steam.ps1"
@@ -27,8 +28,14 @@ Else {
 }
 "
         New-Item TestRegistry:\Steam\ActiveProcess
-        New-ItemProperty -Path TestRegistry:\Steam\ActiveProcess -Name "pid" -Value $ProcessId
-        New-ItemProperty -Path TestRegistry:\Steam\ActiveProcess -Name "ActiveUser" -Value $activeuserid
+        If ( $Running ) {
+            New-ItemProperty -Path TestRegistry:\Steam\ActiveProcess -Name "pid" -Value $ProcessId
+            New-ItemProperty -Path TestRegistry:\Steam\ActiveProcess -Name "ActiveUser" -Value $activeuserid
+        }
+        Else {
+            New-ItemProperty -Path TestRegistry:\Steam\ActiveProcess -Name "pid" -Value 0
+            New-ItemProperty -Path TestRegistry:\Steam\ActiveProcess -Name "ActiveUser" -Value 0
+        }
         New-Item TestRegistry:\Steam\Apps
         $AppIds | ForEach-Object {
             New-Item TestRegistry:\Steam\Apps\$_
@@ -77,7 +84,7 @@ Describe "SteamNotInstalled" {
 
 Describe 'SteamRunning' {
     BeforeAll {
-        Install-MockSteam -ProcessId 123123123 -AppIds 456456456,444555666 -UserIds 789789789,777888999
+        Install-MockSteam -ProcessId 123123123 -AppIds 456456456,444555666 -UserIds 789789789,777888999 -Running
     }
     It "Get-ActiveProcessId" {
         Get-SteamActiveProcessId | Should -Be 123123123
@@ -125,5 +132,21 @@ Describe 'SteamRunning' {
     }
     It "Test-SteamUserId-False" {
         Test-SteamUserId -UserId 1 | Should -BeFalse
+    }
+}
+
+Describe 'SteamNotRunning' {
+    BeforeAll {
+        Install-MockSteam -ProcessId 123123123 -UserIds 789789789,777888999
+    }
+    It "Start-Stop-Steam" {
+        Get-SteamActiveProcessId | Should -Be 0
+        Get-SteamActiveUserId | Should -Be 0
+        Start-Steam
+        Get-SteamActiveProcessId | Should -Be 123123123
+        Get-SteamActiveUserId | Should -Be 789789789
+        Stop-Steam
+        Get-SteamActiveProcessId | Should -Be 0
+        Get-SteamActiveUserId | Should -Be 0
     }
 }
