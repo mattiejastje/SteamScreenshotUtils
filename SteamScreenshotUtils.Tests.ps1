@@ -10,12 +10,24 @@ BeforeAll {
             [Int32[]]$AppIds = @(),
             [Int32[]]$UserIds = @()
         )
+        [Int32]$activeuserid = If ( $ProcessId -And $UserIds.Length ) { $UserIds[0] } Else { 0 }
         New-Item TestRegistry:\Steam
         New-ItemProperty -Path TestRegistry:\Steam -Name "SteamPath" -Value "TestDrive:/steam"
-        New-ItemProperty -Path TestRegistry:\Steam -Name "SteamExe" -Value "TestDrive:/steam/steam.exe"
+        New-ItemProperty -Path TestRegistry:\Steam -Name "SteamExe" -Value "TestDrive:/steam/steam.ps1"
+        New-Item TestDrive:\steam -ItemType "directory"
+        New-Item TestDrive:\steam\steam.ps1 -ItemType "file" -Value "
+Param([Switch]`$shutdown = `$false)
+If ( `$shutdown ) {
+    Set-ItemProperty -Path TestRegistry:\Steam\ActiveProcess -Name `"pid`" -Value 0
+    Set-ItemProperty -Path TestRegistry:\Steam\ActiveProcess -Name `"ActiveUser`" -Value 0
+}
+Else {
+    Set-ItemProperty -Path TestRegistry:\Steam\ActiveProcess -Name `"pid`" -Value $ProcessId
+    Set-ItemProperty -Path TestRegistry:\Steam\ActiveProcess -Name `"ActiveUser`" -Value $activeuserid
+}
+"
         New-Item TestRegistry:\Steam\ActiveProcess
         New-ItemProperty -Path TestRegistry:\Steam\ActiveProcess -Name "pid" -Value $ProcessId
-        [Int32]$activeuserid = If ( $ProcessId -And $UserIds.Length ) { $UserIds[0] } Else { 0 }
         New-ItemProperty -Path TestRegistry:\Steam\ActiveProcess -Name "ActiveUser" -Value $activeuserid
         New-Item TestRegistry:\Steam\Apps
         $AppIds | ForEach-Object {
@@ -74,7 +86,7 @@ Describe 'SteamRunning' {
         Get-SteamActiveUserId | Should -Be 789789789
     }
     It "Get-SteamExe" {
-        Get-SteamExe | Should -Be "TestDrive:\steam\steam.exe"
+        Get-SteamExe | Should -Be "TestDrive:\steam\steam.ps1"
     }
     It "Get-SteamPath" {
         Get-SteamPath | Should -Be "TestDrive:\steam"
@@ -88,11 +100,15 @@ Describe 'SteamRunning' {
     It "Find-SteamAppIdByName-None" {
         Find-SteamAppIdByName "non-existing app" | Should -Be $null 
     }
-    It "Start-Steam" {
-        Start-Steam | Should -Be $null 
-    }
-    It "Stop-Steam" {
-        { Stop-Steam } | Should -Throw "*'TestDrive:\steam\steam.exe' is not recognized*" 
+    It "Stop-Start-Steam" {
+        Get-SteamActiveProcessId | Should -Be 123123123
+        Get-SteamActiveUserId | Should -Be 789789789
+        Stop-Steam -Milliseconds 0
+        Get-SteamActiveProcessId | Should -Be 0
+        Get-SteamActiveUserId | Should -Be 0
+        Start-Steam -Milliseconds 0
+        Get-SteamActiveProcessId | Should -Be 123123123
+        Get-SteamActiveUserId | Should -Be 789789789
     }
     It "Test-SteamAppId-True" {
         Test-SteamAppId -AppId 456456456 | Should -BeTrue

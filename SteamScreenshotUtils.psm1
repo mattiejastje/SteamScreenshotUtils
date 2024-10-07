@@ -135,14 +135,14 @@ Stop steam and wait until the process is no longer running.
 #>
 Function Stop-Steam {
   [CmdletBinding(SupportsShouldProcess)]
-  Param()
+  Param([Int32]$Milliseconds = 1000)
   If ( $(Get-SteamActiveProcessId) -Ne 0 ) {
     [String]$steamexe = Get-SteamExe
     if ($PSCmdlet.ShouldProcess($steamexe)) {
       & $steamexe -shutdown
       Do {
         Write-Verbose "Awaiting steam shutdown..."
-        Start-Sleep -S 1
+        Start-Sleep -Milliseconds $Milliseconds
       } While ( $(Get-SteamActiveProcessId) -Ne 0 )
     }
   }
@@ -156,14 +156,14 @@ Start steam and wait until the process is running.
 #>
 Function Start-Steam {
   [CmdletBinding(SupportsShouldProcess)]
-  Param()
+  Param([Int32]$Milliseconds = 1000)
   If ( $(Get-SteamActiveProcessId) -Eq 0 ) {
     [String]$steamexe = Get-SteamExe
     if ($PSCmdlet.ShouldProcess($steamexe)) {
       & $steamexe
       Do {
         Write-Verbose "Awaiting steam start..."
-        Start-Sleep -S 1
+        Start-Sleep -Milliseconds $Milliseconds
       } While ( $(Get-SteamActiveProcessId) -Eq 0 )
     }
   }
