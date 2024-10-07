@@ -1,7 +1,7 @@
 Add-Type -AssemblyName System.Drawing
 
 Function Get-SteamRegistryRoot {
-  Return "HKCU:\Software\Valve\Steam"
+    Return "HKCU:\Software\Valve\Steam"
 }
 
 <#
@@ -14,7 +14,7 @@ Stops if registry key is not present (for instance, if steam is not installed).
 The steam process id, or 0 if steam is not running.
 #>
 Function Get-SteamActiveProcessId {
-  Return [Int32](Get-ItemProperty "$(Get-SteamRegistryRoot)\ActiveProcess" -ea Stop).pid
+    Return [Int32](Get-ItemProperty "$(Get-SteamRegistryRoot)\ActiveProcess" -ea Stop).pid
 }
 
 <#
@@ -27,7 +27,7 @@ Stops if registry key is not present (for instance, if steam is not installed).
 The active user id, or 0 if steam is not running.
 #>
 Function Get-SteamActiveUserId {
-  Return [Int32](Get-ItemProperty "$(Get-SteamRegistryRoot)\ActiveProcess" -ea Stop).ActiveUser
+    Return [Int32](Get-ItemProperty "$(Get-SteamRegistryRoot)\ActiveProcess" -ea Stop).ActiveUser
 }
 
 <#
@@ -40,7 +40,7 @@ Stops if registry key is not present (for instance, if steam is not installed).
 The path to the steam executable.
 #>
 Function Get-SteamExe {
-  Return "$((Get-ItemProperty $(Get-SteamRegistryRoot) -ea Stop).SteamExe)".Replace("/", "\")
+    Return "$((Get-ItemProperty $(Get-SteamRegistryRoot) -ea Stop).SteamExe)".Replace("/", "\")
 }
 
 <#
@@ -53,7 +53,7 @@ Stops if registry key is not present (for instance, if steam is not installed).
 The path to the steam installation directory.
 #>
 Function Get-SteamPath {
-  Return "$((Get-ItemProperty $(Get-SteamRegistryRoot) -ea Stop).SteamPath)".Replace("/", "\")
+    Return "$((Get-ItemProperty $(Get-SteamRegistryRoot) -ea Stop).SteamPath)".Replace("/", "\")
 }
 
 <#
@@ -65,8 +65,8 @@ Fetches the user ids from the registry.
 The user ids.
 #>
 Function Get-SteamUserIds {
-  Get-Item "$(Get-SteamRegistryRoot)\Users" -ea Stop | Out-Null
-  Return [Int32[]]@(Get-ChildItem "$(Get-SteamRegistryRoot)\Users" -Name -ea Stop)
+    Get-Item "$(Get-SteamRegistryRoot)\Users" -ea Stop | Out-Null
+    Return [Int32[]]@(Get-ChildItem "$(Get-SteamRegistryRoot)\Users" -Name -ea Stop)
 }
 
 <#
@@ -76,9 +76,9 @@ Test steam user id.
 Test whether steam user id exists in the registry.
 #>
 Function Test-SteamUserId {
-  Param([Parameter(Mandatory)][Int32]$UserId)
-  Get-Item "$(Get-SteamRegistryRoot)\Users" -ea Stop | Out-Null
-  Return Test-Path "$(Get-SteamRegistryRoot)\Users\$UserId"
+    Param([Parameter(Mandatory)][Int32]$UserId)
+    Get-Item "$(Get-SteamRegistryRoot)\Users" -ea Stop | Out-Null
+    Return Test-Path "$(Get-SteamRegistryRoot)\Users\$UserId"
 }
 
 <#
@@ -102,16 +102,16 @@ VERBOSE: Hellblade: Senua's Sacrifice
 414340
 #>
 Function Find-SteamAppIdByName {
-  [CmdletBinding()]
-  [OutputType([Int32])]
-  Param([Parameter(Mandatory)][String]$Regex)
-  Get-ChildItem "$(Get-SteamRegistryRoot)\Apps" -ea Stop | ForEach-Object {
-    $property = Get-ItemProperty $_.PSPath
-    If ( $property.Name -Match $Regex) {
-      Write-Verbose $property.Name
-      Return [Int32]($property.PSChildName)
+    [CmdletBinding()]
+    [OutputType([Int32])]
+    Param([Parameter(Mandatory)][String]$Regex)
+    Get-ChildItem "$(Get-SteamRegistryRoot)\Apps" -ea Stop | ForEach-Object {
+        $property = Get-ItemProperty $_.PSPath
+        If ( $property.Name -Match $Regex) {
+            Write-Verbose $property.Name
+            Return [Int32]($property.PSChildName)
+        }
     }
-  }
 }
 
 <#
@@ -121,10 +121,10 @@ Test steam app id.
 Test whether steam app id exists in the registry.
 #>
 Function Test-SteamAppId {
-  [CmdletBinding()]
-  Param([Parameter(Mandatory)][Int32]$AppId)
-  Get-Item "$(Get-SteamRegistryRoot)\Apps" -ea Stop | Out-Null
-  Return Test-Path "$(Get-SteamRegistryRoot)\Apps\$AppId"
+    [CmdletBinding()]
+    Param([Parameter(Mandatory)][Int32]$AppId)
+    Get-Item "$(Get-SteamRegistryRoot)\Apps" -ea Stop | Out-Null
+    Return Test-Path "$(Get-SteamRegistryRoot)\Apps\$AppId"
 }
 
 <#
@@ -134,18 +134,18 @@ Stop steam.
 Stop steam and wait until the process is no longer running.
 #>
 Function Stop-Steam {
-  [CmdletBinding(SupportsShouldProcess)]
-  Param()
-  If ( $(Get-SteamActiveProcessId) -Ne 0 ) {
-    [String]$steamexe = Get-SteamExe
-    if ($PSCmdlet.ShouldProcess($steamexe)) {
-      & $steamexe -shutdown
-      While ( $(Get-SteamActiveProcessId) -Ne 0 ) {
-        Write-Verbose "Awaiting steam shutdown..."
-        Start-Sleep -Seconds 1
-      }
+    [CmdletBinding(SupportsShouldProcess)]
+    Param()
+    If ( $(Get-SteamActiveProcessId) -Ne 0 ) {
+        [String]$steamexe = Get-SteamExe
+        if ($PSCmdlet.ShouldProcess($steamexe)) {
+            & $steamexe -shutdown
+            While ( $(Get-SteamActiveProcessId) -Ne 0 ) {
+                Write-Verbose "Awaiting steam shutdown..."
+                Start-Sleep -Seconds 1
+            }
+        }
     }
-  }
 }
 
 <#
@@ -155,18 +155,18 @@ Start steam.
 Start steam and wait until the process is running.
 #>
 Function Start-Steam {
-  [CmdletBinding(SupportsShouldProcess)]
-  Param()
-  If ( $(Get-SteamActiveProcessId) -Eq 0 ) {
-    [String]$steamexe = Get-SteamExe
-    if ($PSCmdlet.ShouldProcess($steamexe)) {
-      & $steamexe
-    While ( $(Get-SteamActiveProcessId) -Eq 0 ) {
-        Write-Verbose "Awaiting steam start..."
-        Start-Sleep -Seconds 1
+    [CmdletBinding(SupportsShouldProcess)]
+    Param()
+    If ( $(Get-SteamActiveProcessId) -Eq 0 ) {
+        [String]$steamexe = Get-SteamExe
+        if ($PSCmdlet.ShouldProcess($steamexe)) {
+            & $steamexe
+            While ( $(Get-SteamActiveProcessId) -Eq 0 ) {
+                Write-Verbose "Awaiting steam start..."
+                Start-Sleep -Seconds 1
+            }
+        }
     }
-  }
-}
 }
 
 <#
@@ -184,16 +184,16 @@ Compression quality, between 0 and 100.
 whilst 100 has largest filesize and best quality.
 #>
 Function Save-BitmapAsJpeg {
-  [CmdletBinding()]
-  Param(
-    [Parameter(Mandatory)][System.Drawing.Bitmap]$Bitmap,
-    [Parameter(Mandatory)][String]$Path,
-    [Int32]$Quality = 90
-  )
-  $codec = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -Eq "image/jpeg" }
-  $params = New-Object System.Drawing.Imaging.EncoderParameters(1)
-  $params.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter([System.Drawing.Imaging.Encoder]::Quality, $Quality)
-  $Bitmap.Save($Path, $codec, $params)
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory)][System.Drawing.Bitmap]$Bitmap,
+        [Parameter(Mandatory)][String]$Path,
+        [Int32]$Quality = 90
+    )
+    $codec = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -Eq "image/jpeg" }
+    $params = New-Object System.Drawing.Imaging.EncoderParameters(1)
+    $params.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter([System.Drawing.Imaging.Encoder]::Quality, $Quality)
+    $Bitmap.Save($Path, $codec, $params)
 }
 
 <#
@@ -209,34 +209,34 @@ The steam app id.
 Screenshots directory.
 #>
 Function Install-SteamScreenshotsDirectory {
-  [CmdletBinding(SupportsShouldProcess)]
-  [OutputType([System.IO.DirectoryInfo])]
-  Param(
-    [Parameter(Mandatory)][ValidateScript({ Test-SteamUserId $_ })][Int32]$UserId,
-    [Parameter(Mandatory)][ValidateScript({ Test-SteamAppId $_ })][Int32]$AppId
-  )
-  [String]$userdata = "$(Get-SteamPath)\userdata\$UserId"
-  If ( -Not ( Test-Path $userdata ) ) {
-    Throw "Cannot find steam path '$userdata' because it does not exist."
-  }
-  [String]$screenshots = "$userdata\760\remote\$AppId\screenshots"
-  [String]$thumbnails = "$screenshots\thumbnails"
-  Write-Debug "Screenshots path: $screenshots"
-  Write-Debug "Thumbnails path: $thumbnails"
-  [System.IO.DirectoryInfo]$screenshotsitem = If ( -Not ( Test-Path $screenshots ) ) {
-    If ( $PSCmdlet.ShouldProcess($screenshots, "create directory") ) {
-      New-Item -Path $screenshots -ItemType "directory"
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([System.IO.DirectoryInfo])]
+    Param(
+        [Parameter(Mandatory)][ValidateScript({ Test-SteamUserId $_ })][Int32]$UserId,
+        [Parameter(Mandatory)][ValidateScript({ Test-SteamAppId $_ })][Int32]$AppId
+    )
+    [String]$userdata = "$(Get-SteamPath)\userdata\$UserId"
+    If ( -Not ( Test-Path $userdata ) ) {
+        Throw "Cannot find steam path '$userdata' because it does not exist."
     }
-  }
-  Else {
-    Get-Item -Path $screenshots
-  }
-  If ( -not ( Test-Path $thumbnails ) ) {
-    If ( $PSCmdlet.ShouldProcess($thumbnails, "create directory") ) {
-      New-Item -Path $thumbnails -ItemType "directory"
+    [String]$screenshots = "$userdata\760\remote\$AppId\screenshots"
+    [String]$thumbnails = "$screenshots\thumbnails"
+    Write-Debug "Screenshots path: $screenshots"
+    Write-Debug "Thumbnails path: $thumbnails"
+    [System.IO.DirectoryInfo]$screenshotsitem = If ( -Not ( Test-Path $screenshots ) ) {
+        If ( $PSCmdlet.ShouldProcess($screenshots, "create directory") ) {
+            New-Item -Path $screenshots -ItemType "directory"
+        }
     }
-  }
-  Return $screenshotsitem
+    Else {
+        Get-Item -Path $screenshots
+    }
+    If ( -not ( Test-Path $thumbnails ) ) {
+        If ( $PSCmdlet.ShouldProcess($thumbnails, "create directory") ) {
+            New-Item -Path $thumbnails -ItemType "directory"
+        }
+    }
+    Return $screenshotsitem
 }
 
 <#
@@ -254,19 +254,19 @@ The date and time of the screenshot to be created.
 Unused path to a screenshot using steam screenshot naming conventions.
 #>
 Function Find-SteamNonExistingScreenshotPath {
-  [CmdletBinding()]
-  [OutputType([String])]
-  Param(
-    [Parameter(Mandatory)][System.IO.DirectoryInfo]$ScreenshotsDirectory,
-    [Parameter(Mandatory)][DateTime]$DateTime
-  )
-  [String]$datestr = $DateTime.ToString("yyyyMMddHHmmss")
-  [Int32]$num = 1
-  Do {
-    $name = "{0}_{1}.jpg" -f $datestr, $num++
-    $path = "$ScreenshotsDirectory\$name"
-  } While ( Test-Path $path )
-  Return $path
+    [CmdletBinding()]
+    [OutputType([String])]
+    Param(
+        [Parameter(Mandatory)][System.IO.DirectoryInfo]$ScreenshotsDirectory,
+        [Parameter(Mandatory)][DateTime]$DateTime
+    )
+    [String]$datestr = $DateTime.ToString("yyyyMMddHHmmss")
+    [Int32]$num = 1
+    Do {
+        $name = "{0}_{1}.jpg" -f $datestr, $num++
+        $path = "$ScreenshotsDirectory\$name"
+    } While ( Test-Path $path )
+    Return $path
 }
 
 <#
@@ -321,73 +321,73 @@ Install all png images from a folder into Grand Theft Auto V:
 PS> Get-Item folder\to\images\*.png | Install-SteamScreenshot -AppId 271590
 #>
 Function Install-SteamScreenshot {
-  [CmdletBinding(SupportsShouldProcess)]
-  [OutputType([String[]])]
-  Param(
-    [Int32]$MaxWidth = 16000, # https://github.com/awthwathje/SteaScree/issues/4
-    [Int32]$MaxHeight = 16000, # https://github.com/awthwathje/SteaScree/issues/4
-    [Int32]$MaxResolution = 26210175, # https://github.com/awthwathje/SteaScree/issues/4
-    [Int32]$ConversionQuality = 90, # seems to be steam default according to "magick identify -verbose"
-    [Int32]$ThumbnailQuality = 95, # seems to be steam default according to "magick identify -verbose"
-    [Int32]$ThumbnailSize = 144, # gives 256x144 for 16:9 pictures
-    [Parameter(Mandatory)][ValidateScript({ Test-SteamUserId $_ })][Int32]$UserId,
-    [Parameter(Mandatory)][ValidateScript({ Test-SteamAppId $_ })][Int32]$AppId,
-    [Parameter(Mandatory, ValueFromPipeline)][System.IO.FileInfo]$FileInfo
-  )
-  Begin {
-    Stop-Steam
-    [System.IO.DirectoryInfo]$screenshots = Install-SteamScreenshotsDirectory -UserId $UserId -AppId $AppId
-    [System.IO.DirectoryInfo]$thumbnails = Get-Item "$screenshots/thumbnails" -ea Stop
-  }
-  Process {
-    Write-Verbose "Loading image"
-    $image = New-Object System.Drawing.Bitmap $FileInfo.FullName
-    $newscreenshot = Find-SteamNonExistingScreenshotPath -ScreenshotsDirectory $screenshots -DateTime $FileInfo.LastWriteTime
-    $scale = [Math]::Min(
-      [Math]::Min( $MaxWidth / $image.Width, $MaxHeight / $image.Height),
-      $MaxResolution / ($image.Width * $image.Height)
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([String[]])]
+    Param(
+        [Int32]$MaxWidth = 16000, # https://github.com/awthwathje/SteaScree/issues/4
+        [Int32]$MaxHeight = 16000, # https://github.com/awthwathje/SteaScree/issues/4
+        [Int32]$MaxResolution = 26210175, # https://github.com/awthwathje/SteaScree/issues/4
+        [Int32]$ConversionQuality = 90, # seems to be steam default according to "magick identify -verbose"
+        [Int32]$ThumbnailQuality = 95, # seems to be steam default according to "magick identify -verbose"
+        [Int32]$ThumbnailSize = 144, # gives 256x144 for 16:9 pictures
+        [Parameter(Mandatory)][ValidateScript({ Test-SteamUserId $_ })][Int32]$UserId,
+        [Parameter(Mandatory)][ValidateScript({ Test-SteamAppId $_ })][Int32]$AppId,
+        [Parameter(Mandatory, ValueFromPipeline)][System.IO.FileInfo]$FileInfo
     )
-    If ( $scale -Ge 1 ) {
-      If ( $FileInfo.Extension -In @(".jpg", ".jpeg", ".jfif", ".pjpeg", ".pjp") ) {
-        if ( $PSCmdlet.ShouldProcess($FileInfo.FullName), "copy to $newscreenshot" ) {
-          Copy-Item -Path $FileInfo.FullName -Destination $newscreenshot
+    Begin {
+        Stop-Steam
+        [System.IO.DirectoryInfo]$screenshots = Install-SteamScreenshotsDirectory -UserId $UserId -AppId $AppId
+        [System.IO.DirectoryInfo]$thumbnails = Get-Item "$screenshots/thumbnails" -ea Stop
+    }
+    Process {
+        Write-Verbose "Loading image"
+        $image = New-Object System.Drawing.Bitmap $FileInfo.FullName
+        $newscreenshot = Find-SteamNonExistingScreenshotPath -ScreenshotsDirectory $screenshots -DateTime $FileInfo.LastWriteTime
+        $scale = [Math]::Min(
+            [Math]::Min( $MaxWidth / $image.Width, $MaxHeight / $image.Height),
+            $MaxResolution / ($image.Width * $image.Height)
+        )
+        If ( $scale -Ge 1 ) {
+            If ( $FileInfo.Extension -In @(".jpg", ".jpeg", ".jfif", ".pjpeg", ".pjp") ) {
+                if ( $PSCmdlet.ShouldProcess($FileInfo.FullName), "copy to $newscreenshot" ) {
+                    Copy-Item -Path $FileInfo.FullName -Destination $newscreenshot
+                }
+            }
+            Else {
+                if ( $PSCmdlet.ShouldProcess($FileInfo.FullName), "save as $newscreenshot" ) {
+                    Save-BitmapAsJpeg -Bitmap $image -Path $newscreenshot -Quality $ConversionQuality
+                }
+            }
         }
-      }
-      Else {
-        if ( $PSCmdlet.ShouldProcess($FileInfo.FullName), "save as $newscreenshot" ) {
-          Save-BitmapAsJpeg -Bitmap $image -Path $newscreenshot -Quality $ConversionQuality
+        Else {
+            [Int32]$screenshotwidth = $scale * $image.Width
+            [Int32]$screenshotheight = $scale * $image.Height
+            if ( $PSCmdlet.ShouldProcess($FileInfo.FullName), "resize to ${screenshotwidth}x$screenshotheight and save as $newscreenshot" ) {
+                $screenshotsize = New-Object System.Drawing.Size $screenshotwidth, $screenshotheight
+                $screenshotresized = New-Object System.Drawing.Bitmap $image, $screenshotsize
+                Save-BitmapAsJpeg -Bitmap $screenshotresized -Path $newscreenshot -Quality $ConversionQuality
+                $screenshotresized.Dispose()
+            }
         }
-      }
+        Write-Output $newscreenshot
+        If ( $image.Width -Gt $image.Height ) {
+            [Int32]$thumbnailheight = [Math]::Min($ThumbnailSize, $image.Height)
+            [Int32]$thumbnailwidth = $image.Width * $thumbnailheight / $image.Height
+        }
+        Else {
+            [Int32]$thumbnailwidth = [Math]::Min($ThumbnailSize, $image.Width)
+            [Int32]$thumbnailheight = $image.Height * $thumbnailwidth / $image.Width
+        }
+        $newthumbnail = "$thumbnails\$newname"
+        if ( $PSCmdlet.ShouldProcess($FileInfo.FullName), "resize to ${thumbnailwidth}x$thumbnailheight and save as $newthumbnail" ) {
+            $size = New-Object System.Drawing.Size $thumbnailwidth, $thumbnailheight
+            $resized = New-Object System.Drawing.Bitmap $image, $size
+            Save-BitmapAsJpeg -Bitmap $resized -Path $newthumbnail -Quality $ThumbnailQuality
+            $resized.Dispose()
+        }
+        Write-Output $newthumbnail
+        $image.Dispose()
     }
-    Else {
-      [Int32]$screenshotwidth = $scale * $image.Width
-      [Int32]$screenshotheight = $scale * $image.Height
-      if ( $PSCmdlet.ShouldProcess($FileInfo.FullName), "resize to ${screenshotwidth}x$screenshotheight and save as $newscreenshot" ) {
-        $screenshotsize = New-Object System.Drawing.Size $screenshotwidth, $screenshotheight
-        $screenshotresized = New-Object System.Drawing.Bitmap $image, $screenshotsize
-        Save-BitmapAsJpeg -Bitmap $screenshotresized -Path $newscreenshot -Quality $ConversionQuality
-        $screenshotresized.Dispose()
-      }
-    }
-    Write-Output $newscreenshot
-    If ( $image.Width -Gt $image.Height ) {
-      [Int32]$thumbnailheight = [Math]::Min($ThumbnailSize, $image.Height)
-      [Int32]$thumbnailwidth = $image.Width * $thumbnailheight / $image.Height
-    }
-    Else {
-      [Int32]$thumbnailwidth = [Math]::Min($ThumbnailSize, $image.Width)
-      [Int32]$thumbnailheight = $image.Height * $thumbnailwidth / $image.Width
-    }
-    $newthumbnail = "$thumbnails\$newname"
-    if ( $PSCmdlet.ShouldProcess($FileInfo.FullName), "resize to ${thumbnailwidth}x$thumbnailheight and save as $newthumbnail" ) {
-      $size = New-Object System.Drawing.Size $thumbnailwidth, $thumbnailheight
-      $resized = New-Object System.Drawing.Bitmap $image, $size
-      Save-BitmapAsJpeg -Bitmap $resized -Path $newthumbnail -Quality $ThumbnailQuality
-      $resized.Dispose()
-    }
-    Write-Output $newthumbnail
-    $image.Dispose()
-  }
 }
 
 <#
@@ -404,25 +404,25 @@ The desired resolution.
 Size (i.e. width and height).
 #>
 Function Find-SizeForResolution {
-  [CmdletBinding()]
-  [OutputType([System.Drawing.Size])]
-  Param(
-    [Int32]$MaxWidth = 16000,
-    [Int32]$Resolution
-  )
-  [Int32]$minwidth = [Math]::Sqrt($Resolution)
-  ForEach ($width In $minwidth..$MaxWidth) {
-    [Int32]$rem = -1
-    $height = [Math]::DivRem($Resolution, $width, [ref] $rem)
-    If ($rem -eq 0) {
-      $size = New-Object System.Drawing.Size $width, $height
-      Return $size
+    [CmdletBinding()]
+    [OutputType([System.Drawing.Size])]
+    Param(
+        [Int32]$MaxWidth = 16000,
+        [Int32]$Resolution
+    )
+    [Int32]$minwidth = [Math]::Sqrt($Resolution)
+    ForEach ($width In $minwidth..$MaxWidth) {
+        [Int32]$rem = -1
+        $height = [Math]::DivRem($Resolution, $width, [ref] $rem)
+        If ($rem -eq 0) {
+            $size = New-Object System.Drawing.Size $width, $height
+            Return $size
+        }
     }
-  }
-  Write-Warning "No size for resolution $Resolution with width between $minwidth and $MaxWidth."
-  $height = [Math]::DivRem($Resolution, $minwidth, [ref] $null)
-  $size = New-Object System.Drawing.Size $minwidth, $height
-  Return $size
+    Write-Warning "No size for resolution $Resolution with width between $minwidth and $MaxWidth."
+    $height = [Math]::DivRem($Resolution, $minwidth, [ref] $null)
+    $size = New-Object System.Drawing.Size $minwidth, $height
+    Return $size
 }
 
 <#
@@ -440,26 +440,26 @@ Name of the file to save.
 The saved file path.
 #>
 Function Save-TestJpegForSize {
-  [CmdletBinding()]
-  [OutputType([String])]
-  Param(
-    [Int32]$Quality = 0,
-    [Parameter(Mandatory)][System.Drawing.Size]$Size,
-    [Parameter(Mandatory)][String]$Path
-  )
-  [String]$text = "{0}x{1}`n{2}" -f $Size.width, $Size.height, ( $Size.width * $Size.height )
-  [Int32]$textlength = ("{0}x{1}" -f $Size.width, $Size.height).Length
-  $image = New-Object System.Drawing.Bitmap $Size.width, $Size.height
-  [Int32]$fontsize = [Math]::Min($Size.width, $Size.height) / $textlength
-  $font = New-Object System.Drawing.Font "Ariel", $fontsize
-  $brushbg = [System.Drawing.Brushes]::White
-  $brushfg = [System.Drawing.Brushes]::Black
-  $graphics = [System.Drawing.Graphics]::FromImage($image)
-  $graphics.FillRectangle($brushbg, 0, 0, $image.Width, $image.Height)
-  $graphics.DrawString($text, $font, $brushfg, ($image.Width - $textlength * $fontsize) / 2, ($image.Height - 2 * $font.Height) / 2)
-  $graphics.Dispose()
-  Save-BitmapAsJpeg -Bitmap $image -Path $Path -Quality $Quality
-  Write-Output $Path
+    [CmdletBinding()]
+    [OutputType([String])]
+    Param(
+        [Int32]$Quality = 0,
+        [Parameter(Mandatory)][System.Drawing.Size]$Size,
+        [Parameter(Mandatory)][String]$Path
+    )
+    [String]$text = "{0}x{1}`n{2}" -f $Size.width, $Size.height, ( $Size.width * $Size.height )
+    [Int32]$textlength = ("{0}x{1}" -f $Size.width, $Size.height).Length
+    $image = New-Object System.Drawing.Bitmap $Size.width, $Size.height
+    [Int32]$fontsize = [Math]::Min($Size.width, $Size.height) / $textlength
+    $font = New-Object System.Drawing.Font "Ariel", $fontsize
+    $brushbg = [System.Drawing.Brushes]::White
+    $brushfg = [System.Drawing.Brushes]::Black
+    $graphics = [System.Drawing.Graphics]::FromImage($image)
+    $graphics.FillRectangle($brushbg, 0, 0, $image.Width, $image.Height)
+    $graphics.DrawString($text, $font, $brushfg, ($image.Width - $textlength * $fontsize) / 2, ($image.Height - 2 * $font.Height) / 2)
+    $graphics.Dispose()
+    Save-BitmapAsJpeg -Bitmap $image -Path $Path -Quality $Quality
+    Write-Output $Path
 }
 
 <#
@@ -479,16 +479,16 @@ Name of the file to save.
 The saved file path if resolution was possible, otherwise nothing.
 #>
 Function Save-TestJpegForResolution {
-  [CmdletBinding()]
-  [OutputType([String])]
-  Param(
-    [Int32]$Quality = 0,
-    [Int32]$MaxWidth = 16000,
-    [Parameter(Mandatory)][Int32]$Resolution,
-    [Parameter(Mandatory)][String]$Path
-  )
-  [System.Drawing.Size]$size = Find-SizeForResolution -MaxWidth $MaxWidth -Resolution $Resolution
-  If ( $size.Width * $size.Height -Eq $Resolution ) {
-    Save-TestJpegForSize -Size $size -Path $Path -Quality $Quality
-  }
+    [CmdletBinding()]
+    [OutputType([String])]
+    Param(
+        [Int32]$Quality = 0,
+        [Int32]$MaxWidth = 16000,
+        [Parameter(Mandatory)][Int32]$Resolution,
+        [Parameter(Mandatory)][String]$Path
+    )
+    [System.Drawing.Size]$size = Find-SizeForResolution -MaxWidth $MaxWidth -Resolution $Resolution
+    If ( $size.Width * $size.Height -Eq $Resolution ) {
+        Save-TestJpegForSize -Size $size -Path $Path -Quality $Quality
+    }
 }
