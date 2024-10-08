@@ -271,6 +271,7 @@ Function Find-SteamNonExistingScreenshotName {
 Scale size.
 .DESCRIPTION
 Scale size respecting width, height, and resolution limits.
+The scaled size is guaranteed to have strictly positive width and height.
 .PARAMETER MaxWidth
 Maximum width.
 .PARAMETER MaxHeight
