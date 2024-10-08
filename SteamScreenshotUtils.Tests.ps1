@@ -151,13 +151,13 @@ Describe "Steam process" {
 Describe "Install" {
     BeforeAll {
         $image = New-Object System.Drawing.Bitmap 480, 270
-        $image.Save($(Join-Path $TestDrive "test.bmp"), [System.Drawing.Imaging.ImageFormat]::Bmp)
-        $image.Save($(Join-Path $TestDrive "test.gif"), [System.Drawing.Imaging.ImageFormat]::Gif)
         $image.Save($(Join-Path $TestDrive "test.jpg"), [System.Drawing.Imaging.ImageFormat]::Jpeg)
+        $image.Dispose()
+        $image = New-Object System.Drawing.Bitmap 400, 250
         $image.Save($(Join-Path $TestDrive "test.png"), [System.Drawing.Imaging.ImageFormat]::Png)
-        $image.Save($(Join-Path $TestDrive "test.tif"), [System.Drawing.Imaging.ImageFormat]::Tiff)
         $image.Dispose()
         Set-ItemProperty -Path "TestDrive:\test.jpg" -Name LastWriteTime -Value $(Get-Date -Date "2024-01-01 00:00:00")
+        Set-ItemProperty -Path "TestDrive:\test.png" -Name LastWriteTime -Value $(Get-Date -Date "2024-01-01 00:00:01")
     }
     Context "Steam not installed" {
         It "Install-SteamScreenshotsDirectory" {
@@ -178,15 +178,21 @@ Describe "Install" {
             Install-SteamScreenshotsDirectory -UserId 789789789 -AppId 456456456 -WhatIf | Should -BeNullOrEmpty
             Install-SteamScreenshotsDirectory -UserId 789789789 -AppId 456456456 | Should -Be $(Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots")
         }
-        It "Install-SteamScreenshot" {
+        It "Install-SteamScreenshot invalid argument" {
             { Get-Item "TestDrive:\test.jpg" | Install-SteamScreenshot -UserId 1 -AppId 1 } | Should -Throw "Cannot validate argument*"
             { Get-Item "TestDrive:\test.jpg" | Install-SteamScreenshot -UserId 1 -AppId 456456456 } | Should -Throw "Cannot validate argument*"
             { Get-Item "TestDrive:\test.jpg" | Install-SteamScreenshot -UserId 789789789 -AppId 1 } | Should -Throw "Cannot validate argument*"
+        }
+        It "Install-SteamScreenshot -WhatIf" {
             $screenshot = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\20240101000000_1.jpg"
             $thumbnail = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\thumbnails\20240101000000_1.jpg"
-            Get-Item "TestDrive:\test.jpg" | Install-SteamScreenshot -UserId 789789789 -AppId 456456456 -WhatIf | Should -Be $screenshot, $thumbnail
+            Get-Item "TestDrive:\test.jpg" | Install-SteamScreenshot -UserId 789789789 -AppId 456456456 -WhatIf | Should -BeNullOrEmpty
             Test-Path $screenshot | Should -BeFalse
             Test-Path $thumbnail | Should -BeFalse
+        }
+        It "Install-SteamScreenshot Jpeg" {
+            $screenshot = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\20240101000000_1.jpg"
+            $thumbnail = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\thumbnails\20240101000000_1.jpg"
             Get-Item "TestDrive:\test.jpg" | Install-SteamScreenshot -UserId 789789789 -AppId 456456456 | Should -Be $screenshot, $thumbnail
             Test-Path $screenshot | Should -BeTrue
             Test-Path $thumbnail | Should -BeTrue
@@ -195,6 +201,21 @@ Describe "Install" {
             $screenshotimage.Width | Should -Be 480
             $screenshotimage.Height | Should -Be 270
             $thumbnailimage.Width | Should -Be 256
+            $thumbnailimage.Height | Should -Be 144
+            $screenshotimage.Dispose()
+            $thumbnailimage.Dispose()
+        }
+        It "Install-SteamScreenshot Png" {
+            $screenshot = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\20240101000001_1.jpg"
+            $thumbnail = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\thumbnails\20240101000001_1.jpg"
+            Get-Item "TestDrive:\test.png" | Install-SteamScreenshot -UserId 789789789 -AppId 456456456 | Should -Be $screenshot, $thumbnail
+            Test-Path $screenshot | Should -BeTrue
+            Test-Path $thumbnail | Should -BeTrue
+            $screenshotimage = New-Object System.Drawing.Bitmap $screenshot
+            $thumbnailimage = New-Object System.Drawing.Bitmap $thumbnail
+            $screenshotimage.Width | Should -Be 400
+            $screenshotimage.Height | Should -Be 250
+            $thumbnailimage.Width | Should -Be 230
             $thumbnailimage.Height | Should -Be 144
             $screenshotimage.Dispose()
             $thumbnailimage.Dispose()

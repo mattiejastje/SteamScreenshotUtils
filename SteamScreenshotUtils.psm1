@@ -397,11 +397,13 @@ Function Install-SteamScreenshot {
             If ( $FileInfo.Extension -In @(".jpg", ".jpeg", ".jfif", ".pjpeg", ".pjp") ) {
                 If ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "copy to $newscreenshot" ) ) {
                     Copy-Item -Path $FileInfo.FullName -Destination $newscreenshot
+                    Get-Item $newscreenshot
                 }
             }
             Else {
                 If ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "save as $newscreenshot" ) ) {
                     Save-BitmapAsJpeg -Bitmap $image -Path $newscreenshot -Quality $ConversionQuality
+                    Get-Item $newscreenshot
                 }
             }
         }
@@ -410,9 +412,9 @@ Function Install-SteamScreenshot {
                 $screenshotresized = New-Object System.Drawing.Bitmap $image, $screenshotsize
                 Save-BitmapAsJpeg -Bitmap $screenshotresized -Path $newscreenshot -Quality $ConversionQuality
                 $screenshotresized.Dispose()
+                Get-Item $newscreenshot
             }
         }
-        Write-Output $newscreenshot
         If ( $image.Width -Gt $image.Height ) {
             $thumbsize = Resize-SizeWithinLimits `
                 -MaxWidth $MaxWidth -MaxHeight $([Math]::Min($MaxHeight, $ThumbnailSize)) -MaxResolution $MaxResolution `
@@ -428,8 +430,8 @@ Function Install-SteamScreenshot {
             $resized = New-Object System.Drawing.Bitmap $image, $thumbsize
             Save-BitmapAsJpeg -Bitmap $resized -Path $newthumbnail -Quality $ThumbnailQuality
             $resized.Dispose()
+            Get-Item $newthumbnail
         }
-        Write-Output $newthumbnail
         $image.Dispose()
     }
 }
