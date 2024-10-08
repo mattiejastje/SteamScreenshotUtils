@@ -146,3 +146,58 @@ Describe "Steam process" {
         }
     }
 }
+
+# test install functions
+Describe "Install" {
+    BeforeAll {
+        $image = New-Object System.Drawing.Bitmap 480, 270
+        $image.Save($(Join-Path $TestDrive "test.bmp"), [System.Drawing.Imaging.ImageFormat]::Bmp)
+        $image.Save($(Join-Path $TestDrive "test.gif"), [System.Drawing.Imaging.ImageFormat]::Gif)
+        $image.Save($(Join-Path $TestDrive "test.jpg"), [System.Drawing.Imaging.ImageFormat]::Jpeg)
+        $image.Save($(Join-Path $TestDrive "test.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+        $image.Save($(Join-Path $TestDrive "test.tif"), [System.Drawing.Imaging.ImageFormat]::Tiff)
+        $image.Dispose()
+        Set-ItemProperty -Path "TestDrive:\test.jpg" -Name LastWriteTime -Value $(Get-Date -Date "2024-01-01 00:00:00")
+    }
+    Context "Steam not installed" {
+        It "Install-SteamScreenshotsDirectory" {
+            { Install-SteamScreenshotsDirectory -UserId 1 -AppId 1 } | Should -Throw "*Cannot find path*"
+        }
+        It "Install-SteamScreenshot" {
+            { Get-Item "TestDrive:\test.jpg" | Install-SteamScreenshot -UserId 1 -AppId 1 } | Should -Throw "*Cannot find path*"
+        }
+    }
+    Context "Steam installed" {
+        BeforeAll {
+            Install-MockSteam -ProcessId 123123123 -AppIds 456456456,444555666 -UserIds 789789789,777888999
+        }
+        It "Install-SteamScreenshotsDirectory" {
+            { Install-SteamScreenshotsDirectory -UserId 1 -AppId 1 } | Should -Throw "Cannot validate argument*UserId*"
+            { Install-SteamScreenshotsDirectory -UserId 1 -AppId 456456456 } | Should -Throw "Cannot validate argument*UserId*"
+            { Install-SteamScreenshotsDirectory -UserId 789789789 -AppId 1 } | Should -Throw "Cannot validate argument*AppId*"
+            Install-SteamScreenshotsDirectory -UserId 789789789 -AppId 456456456 -WhatIf | Should -BeNullOrEmpty
+            Install-SteamScreenshotsDirectory -UserId 789789789 -AppId 456456456 | Should -Be $(Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots")
+        }
+        It "Install-SteamScreenshot" {
+            { Get-Item "TestDrive:\test.jpg" | Install-SteamScreenshot -UserId 1 -AppId 1 } | Should -Throw "Cannot validate argument*"
+            { Get-Item "TestDrive:\test.jpg" | Install-SteamScreenshot -UserId 1 -AppId 456456456 } | Should -Throw "Cannot validate argument*"
+            { Get-Item "TestDrive:\test.jpg" | Install-SteamScreenshot -UserId 789789789 -AppId 1 } | Should -Throw "Cannot validate argument*"
+            $screenshot = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\20240101000000_1.jpg"
+            $thumbnail = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\thumbnails\20240101000000_1.jpg"
+            Get-Item "TestDrive:\test.jpg" | Install-SteamScreenshot -UserId 789789789 -AppId 456456456 -WhatIf | Should -Be $screenshot, $thumbnail
+            Test-Path $screenshot | Should -BeFalse
+            Test-Path $thumbnail | Should -BeFalse
+            Get-Item "TestDrive:\test.jpg" | Install-SteamScreenshot -UserId 789789789 -AppId 456456456 | Should -Be $screenshot, $thumbnail
+            Test-Path $screenshot | Should -BeTrue
+            Test-Path $thumbnail | Should -BeTrue
+            $screenshotimage = New-Object System.Drawing.Bitmap $screenshot
+            $thumbnailimage = New-Object System.Drawing.Bitmap $thumbnail
+            $screenshotimage.Width | Should -Be 480
+            $screenshotimage.Height | Should -Be 270
+            $thumbnailimage.Width | Should -Be 256
+            $thumbnailimage.Height | Should -Be 144
+            $screenshotimage.Dispose()
+            $thumbnailimage.Dispose()
+        }
+    }
+}

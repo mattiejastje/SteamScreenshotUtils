@@ -216,15 +216,13 @@ Function Install-SteamScreenshotsDirectory {
         [Parameter(Mandatory)][ValidateScript({ Test-SteamAppId $_ })][Int32]$AppId
     )
     [String]$userdata = "$(Get-SteamPath)\userdata\$UserId"
-    If ( -Not ( Test-Path $userdata ) ) {
-        Throw "Cannot find steam path '$userdata' because it does not exist."
-    }
+    Get-Item $userdata | Out-Null  # assert existence (steam install is botched if it does not exist)
     [String]$screenshots = "$userdata\760\remote\$AppId\screenshots"
     [String]$thumbnails = "$screenshots\thumbnails"
     Write-Debug "Screenshots path: $screenshots"
     Write-Debug "Thumbnails path: $thumbnails"
-    [System.IO.DirectoryInfo]$screenshotsitem = If ( -Not ( Test-Path $screenshots ) ) {
-        If ( $PSCmdlet.ShouldProcess($screenshots, "create directory") ) {
+    If ( -Not ( Test-Path $screenshots ) ) {
+        If ( $PSCmdlet.ShouldProcess($screenshots, "new directory") ) {
             New-Item -Path $screenshots -ItemType "directory"
         }
     }
@@ -232,11 +230,10 @@ Function Install-SteamScreenshotsDirectory {
         Get-Item -Path $screenshots
     }
     If ( -not ( Test-Path $thumbnails ) ) {
-        If ( $PSCmdlet.ShouldProcess($thumbnails, "create directory") ) {
-            New-Item -Path $thumbnails -ItemType "directory"
+        If ( $PSCmdlet.ShouldProcess($thumbnails, "new directory") ) {
+            New-Item -Path $thumbnails -ItemType "directory" | Out-Null
         }
     }
-    Return $screenshotsitem
 }
 
 <#
@@ -253,7 +250,7 @@ The date and time of the screenshot to be created.
 .OUTPUTS
 Unused path to a screenshot using steam screenshot naming conventions.
 #>
-Function Find-SteamNonExistingScreenshotPath {
+Function Find-SteamNonExistingScreenshotName {
     [CmdletBinding()]
     [OutputType([String])]
     Param(
@@ -266,7 +263,7 @@ Function Find-SteamNonExistingScreenshotPath {
         $name = "{0}_{1}.jpg" -f $datestr, $num++
         $path = "$ScreenshotsDirectory\$name"
     } While ( Test-Path $path )
-    Return $path
+    Return $name
 }
 
 <#
@@ -342,19 +339,20 @@ Function Install-SteamScreenshot {
     Process {
         Write-Verbose "Loading image"
         $image = New-Object System.Drawing.Bitmap $FileInfo.FullName
-        $newscreenshot = Find-SteamNonExistingScreenshotPath -ScreenshotsDirectory $screenshots -DateTime $FileInfo.LastWriteTime
+        [String]$newscreenshotname = Find-SteamNonExistingScreenshotName -ScreenshotsDirectory $screenshots -DateTime $FileInfo.LastWriteTime
+        [String]$newscreenshot = Join-Path $screenshots $newscreenshotname
         $scale = [Math]::Min(
             [Math]::Min( $MaxWidth / $image.Width, $MaxHeight / $image.Height),
             $MaxResolution / ($image.Width * $image.Height)
         )
         If ( $scale -Ge 1 ) {
             If ( $FileInfo.Extension -In @(".jpg", ".jpeg", ".jfif", ".pjpeg", ".pjp") ) {
-                if ( $PSCmdlet.ShouldProcess($FileInfo.FullName), "copy to $newscreenshot" ) {
+                if ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "copy to $newscreenshot" ) ) {
                     Copy-Item -Path $FileInfo.FullName -Destination $newscreenshot
                 }
             }
             Else {
-                if ( $PSCmdlet.ShouldProcess($FileInfo.FullName), "save as $newscreenshot" ) {
+                if ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "save as $newscreenshot" ) ) {
                     Save-BitmapAsJpeg -Bitmap $image -Path $newscreenshot -Quality $ConversionQuality
                 }
             }
@@ -362,7 +360,7 @@ Function Install-SteamScreenshot {
         Else {
             [Int32]$screenshotwidth = $scale * $image.Width
             [Int32]$screenshotheight = $scale * $image.Height
-            if ( $PSCmdlet.ShouldProcess($FileInfo.FullName), "resize to ${screenshotwidth}x$screenshotheight and save as $newscreenshot" ) {
+            if ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "resize to ${screenshotwidth}x$screenshotheight and save as $newscreenshot" ) ) {
                 $screenshotsize = New-Object System.Drawing.Size $screenshotwidth, $screenshotheight
                 $screenshotresized = New-Object System.Drawing.Bitmap $image, $screenshotsize
                 Save-BitmapAsJpeg -Bitmap $screenshotresized -Path $newscreenshot -Quality $ConversionQuality
@@ -378,8 +376,8 @@ Function Install-SteamScreenshot {
             [Int32]$thumbnailwidth = [Math]::Min($ThumbnailSize, $image.Width)
             [Int32]$thumbnailheight = $image.Height * $thumbnailwidth / $image.Width
         }
-        $newthumbnail = "$thumbnails\$newname"
-        if ( $PSCmdlet.ShouldProcess($FileInfo.FullName), "resize to ${thumbnailwidth}x$thumbnailheight and save as $newthumbnail" ) {
+        $newthumbnail = Join-Path $thumbnails $newscreenshotname
+        if ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "resize to ${thumbnailwidth}x$thumbnailheight and save as $newthumbnail" ) ) {
             $size = New-Object System.Drawing.Size $thumbnailwidth, $thumbnailheight
             $resized = New-Object System.Drawing.Bitmap $image, $size
             Save-BitmapAsJpeg -Bitmap $resized -Path $newthumbnail -Quality $ThumbnailQuality
