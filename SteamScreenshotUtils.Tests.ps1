@@ -156,7 +156,7 @@ Describe "Install" {
         $image = New-Object System.Drawing.Bitmap 400, 250
         $image.Save($(Join-Path $TestDrive "test.png"), [System.Drawing.Imaging.ImageFormat]::Png)
         $image.Dispose()
-        $image = New-Object System.Drawing.Bitmap 32000, 2
+        $image = New-Object System.Drawing.Bitmap 32000, 4
         $image.Save($(Join-Path $TestDrive "testlarge.jpg"), [System.Drawing.Imaging.ImageFormat]::Jpeg)
         $image.Dispose()
         Set-ItemProperty -Path "TestDrive:\test.jpg" -Name LastWriteTime -Value $(Get-Date -Date "2024-01-01 00:00:00")
@@ -233,9 +233,9 @@ Describe "Install" {
             $screenshotimage = New-Object System.Drawing.Bitmap $screenshot
             $thumbnailimage = New-Object System.Drawing.Bitmap $thumbnail
             $screenshotimage.Width | Should -Be 16000
-            $screenshotimage.Height | Should -Be 1
+            $screenshotimage.Height | Should -Be 2
             $thumbnailimage.Width | Should -Be 16000
-            $thumbnailimage.Height | Should -Be 1
+            $thumbnailimage.Height | Should -Be 2
             $screenshotimage.Dispose()
             $thumbnailimage.Dispose()
         }
