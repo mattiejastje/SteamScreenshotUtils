@@ -49,104 +49,100 @@ Else {
     }
 }
 
-Describe "SteamNotInstalled" {
-    It "Get-ActiveProcessId" {
-        { Get-SteamActiveProcessId } | Should -Throw "Cannot find path*"
+# test functions that directly access the registry
+Describe "Registry" {
+    Context "Steam not installed" {
+        It "Get-ActiveProcessId" {
+            { Get-SteamActiveProcessId } | Should -Throw "Cannot find path*"
+        }
+        It "Get-ActiveUserId" {
+            { Get-SteamActiveUserId } | Should -Throw "Cannot find path*"
+        }
+        It "Get-SteamExe" {
+            { Get-SteamExe } | Should -Throw "Cannot find path*"
+        }
+        It "Get-SteamPath" {
+            { Get-SteamPath } | Should -Throw "Cannot find path*"
+        }
+        It "Get-SteamUserIds" {
+            { Get-SteamUserIds } | Should -Throw "Cannot find path*"
+        }
+        It "Find-SteamAppIdByName" {
+            { Find-SteamAppIdByName -Regex "Test App" } | Should -Throw "Cannot find path*"
+        }
+        It "Test-SteamAppId" {
+            { Test-SteamAppId -AppId 1 } | Should -Throw "Cannot find path*"
+        }
+        It "Test-SteamUserId" {
+            { Test-SteamUserId -UserId 1 } | Should -Throw "Cannot find path*"
+        }    
     }
-    It "Get-ActiveUserId" {
-        { Get-SteamActiveUserId } | Should -Throw "Cannot find path*"
-    }
-    It "Get-SteamExe" {
-        { Get-SteamExe } | Should -Throw "Cannot find path*"
-    }
-    It "Get-SteamPath" {
-        { Get-SteamPath } | Should -Throw "Cannot find path*"
-    }
-    It "Get-SteamUserIds" {
-        { Get-SteamUserIds } | Should -Throw "Cannot find path*"
-    }
-    It "Find-SteamAppIdByName" {
-        { Find-SteamAppIdByName -Regex "Test App" } | Should -Throw "Cannot find path*"
-    }
-    It "Start-Steam" {
-        { Start-Steam } | Should -Throw "Cannot find path*"
-    }
-    It "Stop-Steam" {
-        { Stop-Steam } | Should -Throw "Cannot find path*"
-    }
-    It "Test-SteamAppId" {
-        { Test-SteamAppId -AppId 1 } | Should -Throw "Cannot find path*"
-    }
-    It "Test-SteamUserId" {
-        { Test-SteamUserId -UserId 1 } | Should -Throw "Cannot find path*"
-    }
-}
-
-Describe 'SteamRunning' {
-    BeforeAll {
-        Install-MockSteam -ProcessId 123123123 -AppIds 456456456,444555666 -UserIds 789789789,777888999 -Running
-    }
-    It "Get-ActiveProcessId" {
-        Get-SteamActiveProcessId | Should -Be 123123123
-    }
-    It "Get-ActiveUserId" {
-        Get-SteamActiveUserId | Should -Be 789789789
-    }
-    It "Get-SteamExe" {
-        Get-SteamExe | Should -Be "TestDrive:\steam\steam.ps1"
-    }
-    It "Get-SteamPath" {
-        Get-SteamPath | Should -Be "TestDrive:\steam"
-    }
-    It "Get-SteamUserIds" {
-        Get-SteamUserIds | Sort-Object | Should -Be @(777888999,789789789)
-    }
-    It "Find-SteamAppIdByName-Two" {
-        Find-SteamAppIdByName "app" | Sort-Object | Should -Be @(444555666,456456456)
-    }
-    It "Find-SteamAppIdByName-One" {
-        Find-SteamAppIdByName "app 456" | Should -Be 456456456 
-        Find-SteamAppIdByName "app 444" | Should -Be 444555666
-    }
-    It "Find-SteamAppIdByName-None" {
-        Find-SteamAppIdByName "non-existing app" | Should -Be $null 
-    }
-    It "Stop-Start-Steam" {
-        Get-SteamActiveProcessId | Should -Be 123123123
-        Get-SteamActiveUserId | Should -Be 789789789
-        Stop-Steam
-        Get-SteamActiveProcessId | Should -Be 0
-        Get-SteamActiveUserId | Should -Be 0
-        Start-Steam
-        Get-SteamActiveProcessId | Should -Be 123123123
-        Get-SteamActiveUserId | Should -Be 789789789
-    }
-    It "Test-SteamAppId-True" {
-        Test-SteamAppId -AppId 456456456 | Should -BeTrue
-    }
-    It "Test-SteamAppId-False" {
-        Test-SteamAppId -AppId 1 | Should -BeFalse
-    }
-    It "Test-SteamUserId-True" {
-        Test-SteamUserId -UserId 789789789 | Should -BeTrue
-    }
-    It "Test-SteamUserId-False" {
-        Test-SteamUserId -UserId 1 | Should -BeFalse
+    Context "Steam installed" {
+        BeforeAll {
+            Install-MockSteam -ProcessId 123123123 -AppIds 456456456,444555666 -UserIds 789789789,777888999
+        }
+        It "Get-ActiveProcessId" {
+            Get-SteamActiveProcessId | Should -Be 0
+        }
+        It "Get-ActiveUserId" {
+            Get-SteamActiveUserId | Should -Be 0
+        }
+        It "Get-SteamExe" {
+            Get-SteamExe | Should -Be "TestDrive:\steam\steam.ps1"
+        }
+        It "Get-SteamPath" {
+            Get-SteamPath | Should -Be "TestDrive:\steam"
+        }
+        It "Get-SteamUserIds" {
+            Get-SteamUserIds | Sort-Object | Should -Be @(777888999,789789789)
+        }
+        It "Find-SteamAppIdByName" {
+            Find-SteamAppIdByName "app" | Sort-Object | Should -Be @(444555666,456456456)
+            Find-SteamAppIdByName "app 456" | Should -Be 456456456 
+            Find-SteamAppIdByName "app 444" | Should -Be 444555666
+            Find-SteamAppIdByName "non-existing app" | Should -Be $null 
+        }
+        It "Test-SteamAppId" {
+            Test-SteamAppId -AppId 456456456 | Should -BeTrue
+            Test-SteamAppId -AppId 1 | Should -BeFalse
+        }
+        It "Test-SteamUserId" {
+            Test-SteamUserId -UserId 789789789 | Should -BeTrue
+            Test-SteamUserId -UserId 1 | Should -BeFalse
+        }
     }
 }
 
-Describe 'SteamNotRunning' {
-    BeforeAll {
-        Install-MockSteam -ProcessId 123123123 -UserIds 789789789,777888999
+# test functions that control the steam process
+Describe "Steam process" {
+    Context "Steam installed" {
+        BeforeAll {
+            Install-MockSteam -ProcessId 123123123 -AppIds 456456456,444555666 -UserIds 789789789,777888999
+        }
+        It "Start and stop steam" {
+            Get-SteamActiveProcessId | Should -Be 0
+            Get-SteamActiveUserId | Should -Be 0
+            Start-Steam
+            Get-SteamActiveProcessId | Should -Be 123123123
+            Get-SteamActiveUserId | Should -Be 789789789
+            Stop-Steam
+            Get-SteamActiveProcessId | Should -Be 0
+            Get-SteamActiveUserId | Should -Be 0
+        }
     }
-    It "Start-Stop-Steam" {
-        Get-SteamActiveProcessId | Should -Be 0
-        Get-SteamActiveUserId | Should -Be 0
-        Start-Steam
-        Get-SteamActiveProcessId | Should -Be 123123123
-        Get-SteamActiveUserId | Should -Be 789789789
-        Stop-Steam
-        Get-SteamActiveProcessId | Should -Be 0
-        Get-SteamActiveUserId | Should -Be 0
+    Context "Steam installed and running" {
+        BeforeAll {
+            Install-MockSteam -ProcessId 123123123 -AppIds 456456456,444555666 -UserIds 789789789,777888999 -Running
+        }
+        It "Stop and start steam" {
+            Get-SteamActiveProcessId | Should -Be 123123123
+            Get-SteamActiveUserId | Should -Be 789789789
+            Stop-Steam
+            Get-SteamActiveProcessId | Should -Be 0
+            Get-SteamActiveUserId | Should -Be 0
+            Start-Steam
+            Get-SteamActiveProcessId | Should -Be 123123123
+            Get-SteamActiveUserId | Should -Be 789789789
+        }
     }
 }
