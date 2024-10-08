@@ -156,8 +156,12 @@ Describe "Install" {
         $image = New-Object System.Drawing.Bitmap 400, 250
         $image.Save($(Join-Path $TestDrive "test.png"), [System.Drawing.Imaging.ImageFormat]::Png)
         $image.Dispose()
+        $image = New-Object System.Drawing.Bitmap 32000, 2
+        $image.Save($(Join-Path $TestDrive "testlarge.jpg"), [System.Drawing.Imaging.ImageFormat]::Jpeg)
+        $image.Dispose()
         Set-ItemProperty -Path "TestDrive:\test.jpg" -Name LastWriteTime -Value $(Get-Date -Date "2024-01-01 00:00:00")
         Set-ItemProperty -Path "TestDrive:\test.png" -Name LastWriteTime -Value $(Get-Date -Date "2024-01-01 00:00:01")
+        Set-ItemProperty -Path "TestDrive:\testlarge.jpg" -Name LastWriteTime -Value $(Get-Date -Date "2024-01-01 00:00:02")
     }
     Context "Steam not installed" {
         It "Install-SteamScreenshotsDirectory" {
@@ -217,6 +221,21 @@ Describe "Install" {
             $screenshotimage.Height | Should -Be 250
             $thumbnailimage.Width | Should -Be 230
             $thumbnailimage.Height | Should -Be 144
+            $screenshotimage.Dispose()
+            $thumbnailimage.Dispose()
+        }
+        It "Install-SteamScreenshot Large" {
+            $screenshot = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\20240101000002_1.jpg"
+            $thumbnail = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\thumbnails\20240101000002_1.jpg"
+            Get-Item "TestDrive:\testlarge.jpg" | Install-SteamScreenshot -UserId 789789789 -AppId 456456456 | Should -Be $screenshot, $thumbnail
+            Test-Path $screenshot | Should -BeTrue
+            Test-Path $thumbnail | Should -BeTrue
+            $screenshotimage = New-Object System.Drawing.Bitmap $screenshot
+            $thumbnailimage = New-Object System.Drawing.Bitmap $thumbnail
+            $screenshotimage.Width | Should -Be 16000
+            $screenshotimage.Height | Should -Be 1
+            $thumbnailimage.Width | Should -Be 16000
+            $thumbnailimage.Height | Should -Be 1
             $screenshotimage.Dispose()
             $thumbnailimage.Dispose()
         }
