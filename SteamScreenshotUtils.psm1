@@ -268,6 +268,55 @@ Function Find-SteamNonExistingScreenshotName {
 
 <#
 .SYNOPSIS
+Scale size.
+.DESCRIPTION
+Scale size respecting width, height, and resolution limits.
+.PARAMETER MaxWidth
+Maximum width.
+.PARAMETER MaxHeight
+Maximum height.
+.PARAMETER MaxResolution
+Maximum resolution (width times height).
+.PARAMETER Size
+Original size.
+.OUTPUTS
+Scaled size.
+#>
+Function Resize-SizeWithinLimits {
+    Param(
+        [Parameter(Mandatory)][Int32]$MaxWidth,
+        [Parameter(Mandatory)][Int32]$MaxHeight,
+        [Parameter(Mandatory)][Int32]$MaxResolution,
+        [Parameter(Mandatory)][System.Drawing.Size]$Size
+    )
+    $scale = (
+        @(
+            ( $MaxWidth / $Size.Width ),
+            ( $MaxHeight / $Size.Height ),
+            ( $MaxResolution / ( $Size.Width * $Size.Height ) ),
+            1
+        ) | Measure-Object -Minimum
+    ).Minimum
+    If ( $scale -Eq 1 ) {
+        $Size
+    }
+    Else {
+        [Int32]$scaledwidth = [Math]::Floor($scale * $Size.Width)
+        [Int32]$scaledheight = [Math]::Floor($scale * $Size.Height)
+        If ( $scaledwidth -Eq 0 ) {
+            New-Object System.Drawing.Size 1, $((@($Size.Height, $MaxHeight, $MaxResolution) | Measure-Object -Minimum).Minimum)
+        }
+        ElseIf ( $scaledheight -Eq 0 ) {
+            New-Object System.Drawing.Size $((@($Size.Width, $MaxWidth, $MaxResolution) | Measure-Object -Minimum).Minimum), 1
+        }
+        Else {
+            New-Object System.Drawing.Size $scaledwidth, $scaledheight
+        }
+    }
+}
+
+<#
+.SYNOPSIS
 Install an image file into the steam screenshots folder for a given user and app.
 .DESCRIPTION
 Stops steam before installing any files.
@@ -341,27 +390,23 @@ Function Install-SteamScreenshot {
         $image = New-Object System.Drawing.Bitmap $FileInfo.FullName
         [String]$newscreenshotname = Find-SteamNonExistingScreenshotName -ScreenshotsDirectory $screenshots -DateTime $FileInfo.LastWriteTime
         [String]$newscreenshot = Join-Path $screenshots $newscreenshotname
-        $scale = [Math]::Min(
-            [Math]::Min( $MaxWidth / $image.Width, $MaxHeight / $image.Height),
-            $MaxResolution / ($image.Width * $image.Height)
-        )
-        If ( $scale -Ge 1 ) {
+        $screenshotsize = Resize-SizeWithinLimits `
+            -MaxWidth $MaxWidth -MaxHeight $MaxHeight -MaxResolution $MaxResolution `
+            -Size $image.Size
+        If ( $screenshotsize -Eq $image.Size ) {
             If ( $FileInfo.Extension -In @(".jpg", ".jpeg", ".jfif", ".pjpeg", ".pjp") ) {
-                if ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "copy to $newscreenshot" ) ) {
+                If ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "copy to $newscreenshot" ) ) {
                     Copy-Item -Path $FileInfo.FullName -Destination $newscreenshot
                 }
             }
             Else {
-                if ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "save as $newscreenshot" ) ) {
+                If ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "save as $newscreenshot" ) ) {
                     Save-BitmapAsJpeg -Bitmap $image -Path $newscreenshot -Quality $ConversionQuality
                 }
             }
         }
         Else {
-            [Int32]$screenshotwidth = $scale * $image.Width
-            [Int32]$screenshotheight = $scale * $image.Height
-            if ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "resize to ${screenshotwidth}x$screenshotheight and save as $newscreenshot" ) ) {
-                $screenshotsize = New-Object System.Drawing.Size $screenshotwidth, $screenshotheight
+            If ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "resize to ${screenshotsize.Width}x${screenshotsize.Height} and save as $newscreenshot" ) ) {
                 $screenshotresized = New-Object System.Drawing.Bitmap $image, $screenshotsize
                 Save-BitmapAsJpeg -Bitmap $screenshotresized -Path $newscreenshot -Quality $ConversionQuality
                 $screenshotresized.Dispose()
@@ -369,17 +414,18 @@ Function Install-SteamScreenshot {
         }
         Write-Output $newscreenshot
         If ( $image.Width -Gt $image.Height ) {
-            [Int32]$thumbnailheight = [Math]::Min($ThumbnailSize, $image.Height)
-            [Int32]$thumbnailwidth = $image.Width * $thumbnailheight / $image.Height
+            $thumbsize = Resize-SizeWithinLimits `
+                -MaxWidth $MaxWidth -MaxHeight $([Math]::Min($MaxHeight, $ThumbnailSize)) -MaxResolution $MaxResolution `
+                -Size $image.Size
         }
         Else {
-            [Int32]$thumbnailwidth = [Math]::Min($ThumbnailSize, $image.Width)
-            [Int32]$thumbnailheight = $image.Height * $thumbnailwidth / $image.Width
+            $thumbsize = Resize-SizeWithinLimits `
+                -MaxWidth $([Math]::Min($MaxWidth, $ThumbnailSize)) -MaxHeight $MaxHeight -MaxResolution $MaxResolution `
+                -Size $image.Size
         }
         $newthumbnail = Join-Path $thumbnails $newscreenshotname
         if ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "resize to ${thumbnailwidth}x$thumbnailheight and save as $newthumbnail" ) ) {
-            $size = New-Object System.Drawing.Size $thumbnailwidth, $thumbnailheight
-            $resized = New-Object System.Drawing.Bitmap $image, $size
+            $resized = New-Object System.Drawing.Bitmap $image, $thumbsize
             Save-BitmapAsJpeg -Bitmap $resized -Path $newthumbnail -Quality $ThumbnailQuality
             $resized.Dispose()
         }
