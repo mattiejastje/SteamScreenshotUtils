@@ -293,7 +293,7 @@ Function Resize-SizeWithinLimits {
         @(
             ( $MaxWidth / $Size.Width ),
             ( $MaxHeight / $Size.Height ),
-            ( $MaxResolution / ( $Size.Width * $Size.Height ) ),
+            ( [Math]::Sqrt( $MaxResolution / ( $Size.Width * $Size.Height ) ) ),
             1
         ) | Measure-Object -Minimum
     ).Minimum

@@ -241,3 +241,28 @@ Describe "Install" {
         }
     }
 }
+
+Describe "Resize-SizeWithinLimits" {
+    It "<MaxWidth> <MaxHeight> <MaxResolution> <Width> <Height> -> <ExpectedWidth> <ExpectedHeight>" -ForEach @(
+        @{
+            MaxWidth = 16000; MaxHeight = 16000; MaxResolution = 25000000; Width = 200; Height = 100;
+            ExpectedWidth = 200; ExpectedHeight = 100
+        },
+        @{
+            MaxWidth = 50; MaxHeight = 16000; MaxResolution = 25000000; Width = 200; Height = 100;
+            ExpectedWidth = 50; ExpectedHeight = 25
+        },
+        @{
+            MaxWidth = 16000; MaxHeight = 50; MaxResolution = 25000000; Width = 200; Height = 100;
+            ExpectedWidth = 100; ExpectedHeight = 50
+        }
+        @{
+            MaxWidth = 16000; MaxHeight = 16000; MaxResolution = 200; Width = 200; Height = 100;
+            ExpectedWidth = 20; ExpectedHeight = 10
+        }
+    ) {
+        $size = New-Object System.Drawing.Size $Width, $Height
+        $expectedsize = New-Object System.Drawing.Size $ExpectedWidth, $ExpectedHeight
+        Resize-SizeWithinLimits -MaxWidth $MaxWidth -MaxHeight $MaxHeight -MaxResolution $MaxResolution -Size $size | Should -Be $expectedsize
+    }
+}
