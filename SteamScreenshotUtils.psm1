@@ -346,9 +346,9 @@ Steam takes screenshots with quality 90, and this is the default.
 .PARAMETER ThumbnailQuality
 Jpeg quality of the generated thumbnail.
 Steam creates thumbnails with quality 95, and this is the default.
-.PARAMETER ThumbnailSize
-Size of thumbnails.
-The generated thumbnails will a width or height equal to this number,
+.PARAMETER MinThumbnailSize
+Minimum size of thumbnails.
+The generated thumbnails will have a width or height equal to this number,
 whichever is smallest.
 Defaults to 144.
 Note that steam creates thumbnails with a fixed width of 200,
@@ -375,7 +375,7 @@ Function Install-SteamScreenshot {
         [Int32]$MaxResolution = 26210175, # https://github.com/awthwathje/SteaScree/issues/4
         [Int32]$ConversionQuality = 90, # seems to be steam default according to "magick identify -verbose"
         [Int32]$ThumbnailQuality = 95, # seems to be steam default according to "magick identify -verbose"
-        [Int32]$ThumbnailSize = 144, # gives 256x144 for 16:9 pictures
+        [Int32]$MinThumbnailSize = 144, # gives 256x144 for 16:9 pictures
         [Parameter(Mandatory)][ValidateScript({ Test-SteamUserId $_ })][Int32]$UserId,
         [Parameter(Mandatory)][ValidateScript({ Test-SteamAppId $_ })][Int32]$AppId,
         [Parameter(Mandatory, ValueFromPipeline)][System.IO.FileInfo]$FileInfo
@@ -408,26 +408,26 @@ Function Install-SteamScreenshot {
             }
         }
         Else {
-            If ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "resize to ${screenshotsize.Width}x${screenshotsize.Height} and save as $newscreenshot" ) ) {
+            If ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "resize to $($screenshotsize.Width)x$($screenshotsize.Height) and save as $newscreenshot" ) ) {
                 $screenshotresized = New-Object System.Drawing.Bitmap $image, $screenshotsize
                 Save-BitmapAsJpeg -Bitmap $screenshotresized -Path $newscreenshot -Quality $ConversionQuality
                 $screenshotresized.Dispose()
                 Get-Item $newscreenshot
             }
         }
-        If ( $image.Width -Gt $image.Height ) {
-            $thumbsize = Resize-SizeWithinLimits `
-                -MaxWidth $MaxWidth -MaxHeight $([Math]::Min($MaxHeight, $ThumbnailSize)) -MaxResolution $MaxResolution `
+        $thumbnailsize = If ( $image.Width -Gt $image.Height ) {
+            Resize-SizeWithinLimits `
+                -MaxWidth $MaxWidth -MaxHeight $([Math]::Min($MaxHeight, $MinThumbnailSize)) -MaxResolution $MaxResolution `
                 -Size $image.Size
         }
         Else {
-            $thumbsize = Resize-SizeWithinLimits `
-                -MaxWidth $([Math]::Min($MaxWidth, $ThumbnailSize)) -MaxHeight $MaxHeight -MaxResolution $MaxResolution `
+            Resize-SizeWithinLimits `
+                -MaxWidth $([Math]::Min($MaxWidth, $MinThumbnailSize)) -MaxHeight $MaxHeight -MaxResolution $MaxResolution `
                 -Size $image.Size
         }
         $newthumbnail = Join-Path $thumbnails $newscreenshotname
-        if ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "resize to ${thumbnailwidth}x$thumbnailheight and save as $newthumbnail" ) ) {
-            $resized = New-Object System.Drawing.Bitmap $image, $thumbsize
+        if ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "resize to $($thumbnailsize.Width)x$($thumbnailsize.Height) and save as $newthumbnail" ) ) {
+            $resized = New-Object System.Drawing.Bitmap $image, $thumbnailsize
             Save-BitmapAsJpeg -Bitmap $resized -Path $newthumbnail -Quality $ThumbnailQuality
             $resized.Dispose()
             Get-Item $newthumbnail
