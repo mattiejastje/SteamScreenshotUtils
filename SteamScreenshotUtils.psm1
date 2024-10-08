@@ -188,7 +188,7 @@ Function Save-BitmapAsJpeg {
     Param(
         [Parameter(Mandatory)][System.Drawing.Bitmap]$Bitmap,
         [Parameter(Mandatory)][String]$Path,
-        [Int32]$Quality = 90
+        [ValidateScript({ ( 0 -Le $_ ) -And ( $_ -Le 100 ) })][Int32]$Quality = 90
     )
     $codec = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -Eq "image/jpeg" }
     $params = New-Object System.Drawing.Imaging.EncoderParameters(1)
@@ -371,12 +371,11 @@ Function Install-SteamScreenshot {
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([String[]])]
     Param(
-        [Int32]$MaxWidth = 16000, # https://github.com/awthwathje/SteaScree/issues/4
-        [Int32]$MaxHeight = 16000, # https://github.com/awthwathje/SteaScree/issues/4
-        [Int32]$MaxResolution = 26210175, # https://github.com/awthwathje/SteaScree/issues/4
-        [Int32]$ConversionQuality = 90, # seems to be steam default according to "magick identify -verbose"
-        [Int32]$ThumbnailQuality = 95, # seems to be steam default according to "magick identify -verbose"
-        [Int32]$MinThumbnailSize = 144, # gives 256x144 for 16:9 pictures
+        [ValidateScript({ $_ -Gt 0 })][Int32]$MaxSize = 16000, # https://github.com/awthwathje/SteaScree/issues/4
+        [ValidateScript({ $_ -Gt 0 })][Int32]$MaxResolution = 26210175, # https://github.com/awthwathje/SteaScree/issues/4
+        [ValidateScript({ ( 0 -Le $_ ) -And ( $_ -Le 100 ) })][Int32]$ConversionQuality = 90, # seems to be steam default according to "magick identify -verbose"
+        [ValidateScript({ ( 0 -Le $_ ) -And ( $_ -Le 100 ) })][Int32]$ThumbnailQuality = 95, # seems to be steam default according to "magick identify -verbose"
+        [ValidateScript({ $_ -Gt 0 })][Int32]$MinThumbnailSize = 144, # gives 256x144 for 16:9 pictures
         [Parameter(Mandatory)][ValidateScript({ Test-SteamUserId $_ })][Int32]$UserId,
         [Parameter(Mandatory)][ValidateScript({ Test-SteamAppId $_ })][Int32]$AppId,
         [Parameter(Mandatory, ValueFromPipeline)][System.IO.FileInfo]$FileInfo
@@ -391,9 +390,7 @@ Function Install-SteamScreenshot {
         $image = New-Object System.Drawing.Bitmap $FileInfo.FullName
         [String]$newscreenshotname = Find-SteamNonExistingScreenshotName -ScreenshotsDirectory $screenshots -DateTime $FileInfo.LastWriteTime
         [String]$newscreenshot = Join-Path $screenshots $newscreenshotname
-        $screenshotsize = Resize-SizeWithinLimits `
-            -MaxWidth $MaxWidth -MaxHeight $MaxHeight -MaxResolution $MaxResolution `
-            -Size $image.Size
+        $screenshotsize = Resize-SizeWithinLimits -MaxWidth $MaxSize -MaxHeight $MaxSize -MaxResolution $MaxResolution -Size $image.Size
         If ( $screenshotsize -Eq $image.Size ) {
             If ( $FileInfo.Extension -In @(".jpg", ".jpeg", ".jfif", ".pjpeg", ".pjp") ) {
                 If ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "copy to $newscreenshot" ) ) {
@@ -416,15 +413,12 @@ Function Install-SteamScreenshot {
                 Get-Item $newscreenshot
             }
         }
+        $safesize = [Math]::Min($MaxSize, $MinThumbnailSize)
         $thumbnailsize = If ( $image.Width -Gt $image.Height ) {
-            Resize-SizeWithinLimits `
-                -MaxWidth $MaxWidth -MaxHeight $([Math]::Min($MaxHeight, $MinThumbnailSize)) -MaxResolution $MaxResolution `
-                -Size $image.Size
+            Resize-SizeWithinLimits -MaxWidth $MaxSize -MaxHeight $safesize -MaxResolution $MaxResolution -Size $image.Size
         }
         Else {
-            Resize-SizeWithinLimits `
-                -MaxWidth $([Math]::Min($MaxWidth, $MinThumbnailSize)) -MaxHeight $MaxHeight -MaxResolution $MaxResolution `
-                -Size $image.Size
+            Resize-SizeWithinLimits -MaxWidth $safesize -MaxHeight $MaxSize -MaxResolution $MaxResolution -Size $image.Size
         }
         $newthumbnail = Join-Path $thumbnails $newscreenshotname
         if ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "resize to $($thumbnailsize.Width)x$($thumbnailsize.Height) and save as $newthumbnail" ) ) {
