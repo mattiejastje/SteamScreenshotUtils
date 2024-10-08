@@ -257,12 +257,15 @@ Describe "Resize-SizeWithinLimits" {
         $expsize = New-Object System.Drawing.Size $ExpWidth, $ExpHeight
         Resize-SizeWithinLimits -MaxWidth $MaxWidth -MaxHeight $MaxHeight -MaxResolution $MaxResolution -Size $size | Should -Be $expsize
     }
-    It "Invalid parameters <MaxWidth> <MaxHeight> <MaxResolution>"  -ForEach @(
-        @{ MaxWidth = 0; MaxHeight = 1; MaxResolution = 1 }
-        @{ MaxWidth = 1; MaxHeight = 0; MaxResolution = 1 }
-        @{ MaxWidth = 1; MaxHeight = 1; MaxResolution = 0 }
+    It "Invalid parameters <MaxWidth> <MaxHeight> <MaxResolution> <Width> <Height>"  -ForEach @(
+        @{ MaxWidth = 0; MaxHeight = 1; MaxResolution = 1; Width = 1; Height = 1 }
+        @{ MaxWidth = 1; MaxHeight = 0; MaxResolution = 1; Width = 1; Height = 1 }
+        @{ MaxWidth = 1; MaxHeight = 1; MaxResolution = 0; Width = 1; Height = 1 }
+        @{ MaxWidth = 1; MaxHeight = 1; MaxResolution = 1; Width = 0; Height = 1 }
+        @{ MaxWidth = 1; MaxHeight = 1; MaxResolution = 1; Width = 1; Height = 0 }
+        @{ MaxWidth = 1; MaxHeight = 1; MaxResolution = 1; Width = 0; Height = 0 }
     ) {
-        $size = New-Object System.Drawing.Size 1, 1
+        $size = New-Object System.Drawing.Size $Width, $Height
         { Resize-SizeWithinLimits -MaxWidth $MaxWidth -MaxHeight $MaxHeight -MaxResolution $MaxResolution -Size $size } | Should -Throw "Cannot validate argument on parameter*"
     }
 }

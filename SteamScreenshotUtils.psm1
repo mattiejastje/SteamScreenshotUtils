@@ -287,7 +287,7 @@ Function Resize-SizeWithinLimits {
         [Parameter(Mandatory)][ValidateScript({ $_ -Gt 0 })][Int32]$MaxWidth,
         [Parameter(Mandatory)][ValidateScript({ $_ -Gt 0 })][Int32]$MaxHeight,
         [Parameter(Mandatory)][ValidateScript({ $_ -Gt 0 })][Int32]$MaxResolution,
-        [Parameter(Mandatory)][System.Drawing.Size]$Size
+        [Parameter(Mandatory)][ValidateScript({ ( $_.Width -Gt 0 ) -And ( $_.Height -Gt 0 ) })][System.Drawing.Size]$Size
     )
     $scale = (
         @(
