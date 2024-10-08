@@ -284,9 +284,9 @@ Scaled size.
 #>
 Function Resize-SizeWithinLimits {
     Param(
-        [Parameter(Mandatory)][Int32]$MaxWidth,
-        [Parameter(Mandatory)][Int32]$MaxHeight,
-        [Parameter(Mandatory)][Int32]$MaxResolution,
+        [Parameter(Mandatory)][ValidateScript({ $_ -Gt 0 })][Int32]$MaxWidth,
+        [Parameter(Mandatory)][ValidateScript({ $_ -Gt 0 })][Int32]$MaxHeight,
+        [Parameter(Mandatory)][ValidateScript({ $_ -Gt 0 })][Int32]$MaxResolution,
         [Parameter(Mandatory)][System.Drawing.Size]$Size
     )
     $scale = (

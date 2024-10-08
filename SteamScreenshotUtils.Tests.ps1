@@ -243,26 +243,26 @@ Describe "Install" {
 }
 
 Describe "Resize-SizeWithinLimits" {
-    It "<MaxWidth> <MaxHeight> <MaxResolution> <Width> <Height> -> <ExpectedWidth> <ExpectedHeight>" -ForEach @(
-        @{
-            MaxWidth = 16000; MaxHeight = 16000; MaxResolution = 25000000; Width = 200; Height = 100;
-            ExpectedWidth = 200; ExpectedHeight = 100
-        },
-        @{
-            MaxWidth = 50; MaxHeight = 16000; MaxResolution = 25000000; Width = 200; Height = 100;
-            ExpectedWidth = 50; ExpectedHeight = 25
-        },
-        @{
-            MaxWidth = 16000; MaxHeight = 50; MaxResolution = 25000000; Width = 200; Height = 100;
-            ExpectedWidth = 100; ExpectedHeight = 50
-        }
-        @{
-            MaxWidth = 16000; MaxHeight = 16000; MaxResolution = 200; Width = 200; Height = 100;
-            ExpectedWidth = 20; ExpectedHeight = 10
-        }
+    It "Correct <MaxWidth> <MaxHeight> <MaxResolution> <Width> <Height> -> <ExpWidth> <ExpHeight>" -ForEach @(
+        @{ MaxWidth = 1000; MaxHeight = 1000; MaxResolution = 100000; Width = 200; Height = 100; ExpWidth = 200; ExpHeight = 100 }
+        @{ MaxWidth = 50; MaxHeight = 1000; MaxResolution = 100000; Width = 200; Height = 100; ExpWidth = 50; ExpHeight = 25 }
+        @{ MaxWidth = 1000; MaxHeight = 50; MaxResolution = 100000; Width = 200; Height = 100; ExpWidth = 100; ExpHeight = 50 }
+        @{ MaxWidth = 1000; MaxHeight = 1000; MaxResolution = 200; Width = 200; Height = 100; ExpWidth = 20; ExpHeight = 10 }
+        @{ MaxWidth = 20; MaxHeight = 1000; MaxResolution = 100000; Width = 200; Height = 2; ExpWidth = 20; ExpHeight = 1 }
+        @{ MaxWidth = 1000; MaxHeight = 20; MaxResolution = 100000; Width = 2; Height = 100; ExpWidth = 1; ExpHeight = 20 }
+        @{ MaxWidth = 1000; MaxHeight = 1000; MaxResolution = 20; Width = 200; Height = 2; ExpWidth = 20; ExpHeight = 1 }
+        @{ MaxWidth = 1000; MaxHeight = 1000; MaxResolution = 20; Width = 2; Height = 100; ExpWidth = 1; ExpHeight = 20 }
     ) {
         $size = New-Object System.Drawing.Size $Width, $Height
-        $expectedsize = New-Object System.Drawing.Size $ExpectedWidth, $ExpectedHeight
-        Resize-SizeWithinLimits -MaxWidth $MaxWidth -MaxHeight $MaxHeight -MaxResolution $MaxResolution -Size $size | Should -Be $expectedsize
+        $expsize = New-Object System.Drawing.Size $ExpWidth, $ExpHeight
+        Resize-SizeWithinLimits -MaxWidth $MaxWidth -MaxHeight $MaxHeight -MaxResolution $MaxResolution -Size $size | Should -Be $expsize
+    }
+    It "Invalid parameters <MaxWidth> <MaxHeight> <MaxResolution>"  -ForEach @(
+        @{ MaxWidth = 0; MaxHeight = 1; MaxResolution = 1 }
+        @{ MaxWidth = 1; MaxHeight = 0; MaxResolution = 1 }
+        @{ MaxWidth = 1; MaxHeight = 1; MaxResolution = 0 }
+    ) {
+        $size = New-Object System.Drawing.Size 1, 1
+        { Resize-SizeWithinLimits -MaxWidth $MaxWidth -MaxHeight $MaxHeight -MaxResolution $MaxResolution -Size $size } | Should -Throw "Cannot validate argument on parameter*"
     }
 }
