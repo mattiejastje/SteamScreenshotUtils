@@ -13,7 +13,7 @@ your steam screenshot folders.
 Though every effort has been done to avoid corrupting the steam screenshots database,
 even though unlikely, there's always a chance that something breaks.
 
-**Make a backup of your steam userdata folder before running any scripts.**
+> :warning: **Make a backup of your steam userdata folder before running any scripts.**
 
 ## Features
 
