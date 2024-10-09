@@ -212,6 +212,64 @@ Function Save-BitmapAsJpeg {
 
 <#
 .SYNOPSIS
+Install image as jpeg file.
+.DESCRIPTION
+Save or copy an image file, with bitmap, as jpeg file compressed with the given quality.
+The installed image will respect the given size constraints.
+.PARAMETER MaxWidth
+Maximum width.
+.PARAMETER MaxHeight
+Maximum height.
+.PARAMETER MaxResolution
+Maximum resolution (width times height).
+.PARAMETER Quality
+Jpeg quality of the image, if it needs to be converted due to non-jpeg source format or resizing.
+.PARAMETER FileInfo
+The source file.
+.PARAMETER Bitmap
+The bitmap of the source file.
+.PARAMETER Path
+Path to the file to be saved.
+#>
+Function Install-ImageAsJpeg {
+    [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([System.IO.FileInfo])]
+    Param(
+        [Parameter(Mandatory)][ValidateScript({ $_ -Gt 0 })][Int32]$MaxWidth,
+        [Parameter(Mandatory)][ValidateScript({ $_ -Gt 0 })][Int32]$MaxHeight,
+        [Parameter(Mandatory)][ValidateScript({ $_ -Gt 0 })][Int32]$MaxResolution,
+        [Parameter(Mandatory)][ValidateScript({ ( 0 -Le $_ ) -And ( $_ -Le 100 ) })][Int32]$Quality,
+        [Parameter(Mandatory)][System.IO.FileInfo]$FileInfo,
+        [Parameter(Mandatory)][System.Drawing.Bitmap]$Bitmap,
+        [Parameter(Mandatory)][String]$Path
+    )
+    $size = Resize-SizeWithinLimits -MaxWidth $MaxWidth -MaxHeight $MaxHeight -MaxResolution $MaxResolution -Size $Bitmap.Size
+    If ( $size -Eq $Bitmap.Size ) {
+        If ( Test-JpegHeader $FileInfo.Fullname ) {
+            If ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "copy to $Path" ) ) {
+                Copy-Item -Path $FileInfo.FullName -Destination $Path
+                Get-Item $Path
+            }
+        }
+        Else {
+            If ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "save as $Path" ) ) {
+                Save-BitmapAsJpeg -Bitmap $Bitmap -Path $Path -Quality $Quality
+                Get-Item $Path
+            }
+        }
+    }
+    Else {
+        If ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "save as $Path resized to $($size.Width)x$($size.Height)" ) ) {
+            $resized = New-Object System.Drawing.Bitmap $Bitmap, $size
+            Save-BitmapAsJpeg -Bitmap $resized -Path $Path -Quality $Quality
+            $resized.Dispose()
+            Get-Item $Path
+        }
+    }
+}
+
+<#
+.SYNOPSIS
 Steam screenshots path for given user and app.
 .DESCRIPTION
 This function checks that the userdata/<UserId> directory exists.
@@ -399,7 +457,7 @@ Steam accepts up to about 26210175 for upload so this is the default.
 You can adjust this if you want higher resolutions in your screenshots library,
 however you will be unable to upload these.
 .PARAMETER ConversionQuality
-Jpeg quality of the image, if it needs to be converted due to not incorrect format.
+Jpeg quality of the image, if it needs to be converted due to non-jpeg source format or resizing.
 Steam takes screenshots with quality 90, and this is the default.
 .PARAMETER ThumbnailQuality
 Jpeg quality of the generated thumbnail.
@@ -440,7 +498,6 @@ Function Install-SteamScreenshot {
     Begin {
         Stop-Steam
         Install-SteamScreenshotsPath -UserId $UserId -AppId $AppId
-        # note: to support -WhatIf, can only assumes these folders exist inside of ShouldProcess
         [String]$screenshots = Get-SteamScreenshotsPath -UserId $UserId -AppId $AppId
         [String]$thumbnails = Join-Path $screenshots "thumbnails"
     }
@@ -459,43 +516,21 @@ Function Install-SteamScreenshot {
         Else {
             Find-SteamNonExistingScreenshotName -ScreenshotsPath $screenshots -DateTime $FileInfo.LastWriteTime
         }
-        [String]$newscreenshot = Join-Path $screenshots $newscreenshotname
-        $screenshotsize = Resize-SizeWithinLimits -MaxWidth $MaxSize -MaxHeight $MaxSize -MaxResolution $MaxResolution -Size $image.Size
-        If ( $screenshotsize -Eq $image.Size ) {
-            If ( Test-JpegHeader $FileInfo.Fullname ) {
-                If ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "copy to $newscreenshot" ) ) {
-                    Copy-Item -Path $FileInfo.FullName -Destination $newscreenshot
-                    Get-Item $newscreenshot
-                }
-            }
-            Else {
-                If ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "save as $newscreenshot" ) ) {
-                    Save-BitmapAsJpeg -Bitmap $image -Path $newscreenshot -Quality $ConversionQuality
-                    Get-Item $newscreenshot
-                }
-            }
+        & {
+            [String]$newscreenshot = Join-Path $screenshots $newscreenshotname
+            Install-ImageAsJpeg `
+                -MaxWidth $MaxSize -MaxHeight $MaxSize -MaxResolution $MaxResolution -Quality $ConversionQuality `
+                -FileInfo $FileInfo -Bitmap $image -Path $newscreenshot
         }
-        Else {
-            If ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "save as $newscreenshot resized to $($screenshotsize.Width)x$($screenshotsize.Height)" ) ) {
-                $screenshotresized = New-Object System.Drawing.Bitmap $image, $screenshotsize
-                Save-BitmapAsJpeg -Bitmap $screenshotresized -Path $newscreenshot -Quality $ConversionQuality
-                $screenshotresized.Dispose()
-                Get-Item $newscreenshot
-            }
-        }
-        $safesize = [Math]::Min($MaxSize, $MinThumbnailSize)
-        $thumbnailsize = If ( $image.Width -Gt $image.Height ) {
-            Resize-SizeWithinLimits -MaxWidth $MaxSize -MaxHeight $safesize -MaxResolution $MaxResolution -Size $image.Size
-        }
-        Else {
-            Resize-SizeWithinLimits -MaxWidth $safesize -MaxHeight $MaxSize -MaxResolution $MaxResolution -Size $image.Size
-        }
-        $newthumbnail = Join-Path $thumbnails $newscreenshotname
-        If ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "save as $newthumbnail resized to $($thumbnailsize.Width)x$($thumbnailsize.Height)" ) ) {
-            $resized = New-Object System.Drawing.Bitmap $image, $thumbnailsize
-            Save-BitmapAsJpeg -Bitmap $resized -Path $newthumbnail -Quality $ThumbnailQuality
-            $resized.Dispose()
-            Get-Item $newthumbnail
+        & {
+            $islandscape = $($image.Width -Gt $image.Height)
+            $safesize = [Math]::Min($MaxSize, $MinThumbnailSize)
+            $thumbmaxwidth = If ( $islandscape ) { $MaxSize } Else { $safesize }
+            $thumbmaxheight = If ( $islandscape ) { $safesize } Else { $MaxSize }
+            $newthumbnail = Join-Path $thumbnails $newscreenshotname
+            Install-ImageAsJpeg `
+                -MaxWidth $thumbmaxwidth -MaxHeight $thumbmaxheight -MaxResolution $MaxResolution -Quality $ThumbnailQuality `
+                -FileInfo $FileInfo -Bitmap $image -Path $newthumbnail
         }
         $image.Dispose()
     }
