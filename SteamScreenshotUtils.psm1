@@ -214,7 +214,7 @@ Function Save-BitmapAsJpeg {
 .SYNOPSIS
 Install image as jpeg file.
 .DESCRIPTION
-Save or copy an image file, with bitmap, as jpeg file compressed with the given quality.
+Save or copy an image file as a jpeg file compressed with the given quality.
 The installed image will respect the given size constraints.
 .PARAMETER MaxWidth
 Maximum width.
@@ -227,9 +227,14 @@ Jpeg quality of the image, if it needs to be converted due to non-jpeg source fo
 .PARAMETER FileInfo
 The source file.
 .PARAMETER Bitmap
-The bitmap of the source file.
+The bitmap loaded from the source file.
 .PARAMETER Path
 Path to the file to be saved.
+.EXAMPLE
+PS> $fileinfo = Get-Item "image.png"
+PS> $bitmap = New-Object System.Drawing.Bitmap $fileinfo.FullName
+PS> Install-ImageAsJpeg -MaxWidth 100 -MaxHeight 100 -MaxResolution 100000 -Quality 90 -FileInfo $fileinfo -Bitmap $bitmap -Path "image.jpg"
+PS> $bitmap.Dispose()
 #>
 Function Install-ImageAsJpeg {
     [CmdletBinding(SupportsShouldProcess)]
