@@ -4,13 +4,6 @@ BeforeAll {
         -ModuleName "SteamScreenshotUtils" `
         -MockWith { Return "TestRegistry:\Steam" }
 
-    Function Assert-JpegHeader {
-        Param([Parameter(Mandatory)][String]$Path)
-        $bytes = Get-Content $Path -Encoding byte -TotalCount 20
-        $bytes[0..3] | Should -Be @(0xFF, 0xD8, 0xFF, 0xE0)
-        $bytes[6..10] | Should -Be @(0x4A, 0x46, 0x49, 0x46, 0x00)
-    }
-
     Function Install-MockSteam {
         Param(
             [Int32]$ProcessId = 1,
@@ -160,7 +153,7 @@ Describe "Save-BitmapAsJpeg" {
         $file = Join-Path $TestDrive test1.jpg
         Save-BitmapAsJpeg -Bitmap $image -Path $file -Quality $_
         $image.Dispose()
-        Assert-JpegHeader -Path $file
+        Test-JpegHeader -Path $file | Should -BeTrue
     }
     It "Invalid quality" -ForEach @(-1, 101) {
         $image = New-Object System.Drawing.Bitmap 20, 10

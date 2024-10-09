@@ -171,6 +171,20 @@ Function Start-Steam {
 
 <#
 .SYNOPSIS
+Check if file is a jpeg.
+.DESCRIPTION
+Inspects only the first 11 bytes of the file.
+.PARAMETER Path
+Path to the file.
+#>
+Function Test-JpegHeader {
+    Param([Parameter(Mandatory)][String]$Path)
+    $bytes = Get-Content $Path -Encoding byte -TotalCount 11
+    $null -Eq (Compare-Object $bytes[0..3+6..10] @(0xFF, 0xD8, 0xFF, 0xE0, 0x4A, 0x46, 0x49, 0x46, 0x00) -SyncWindow 0)
+}
+
+<#
+.SYNOPSIS
 Save bitmap as jpeg file.
 .DESCRIPTION
 Save bitmap as jpeg file compressed with the given quality.
@@ -442,7 +456,7 @@ Function Install-SteamScreenshot {
         [String]$newscreenshot = Join-Path $screenshots $newscreenshotname
         $screenshotsize = Resize-SizeWithinLimits -MaxWidth $MaxSize -MaxHeight $MaxSize -MaxResolution $MaxResolution -Size $image.Size
         If ( $screenshotsize -Eq $image.Size ) {
-            If ( $FileInfo.Extension -In @(".jpg", ".jpeg", ".jfif", ".pjpeg", ".pjp") ) {
+            If ( Test-JpegHeader $FileInfo.Fullname ) {
                 If ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "copy to $newscreenshot" ) ) {
                     Copy-Item -Path $FileInfo.FullName -Destination $newscreenshot
                     Get-Item $newscreenshot
