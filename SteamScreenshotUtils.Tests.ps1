@@ -125,30 +125,24 @@ Describe "Steam process" {
         BeforeAll {
             Install-MockSteam -ProcessId 123123123 -AppIds 456456456,444555666 -UserIds 789789789,777888999
         }
-        It "Start and stop steam" {
+        It "Start steam" {
             Get-SteamActiveProcessId | Should -Be 0
             Get-SteamActiveUserId | Should -Be 0
             Start-Steam
             Get-SteamActiveProcessId | Should -Be 123123123
             Get-SteamActiveUserId | Should -Be 789789789
-            Stop-Steam
-            Get-SteamActiveProcessId | Should -Be 0
-            Get-SteamActiveUserId | Should -Be 0
         }
     }
     Context "Steam installed and running" {
         BeforeAll {
             Install-MockSteam -ProcessId 123123123 -AppIds 456456456,444555666 -UserIds 789789789,777888999 -Running
         }
-        It "Stop and start steam" {
+        It "Stop steam" {
             Get-SteamActiveProcessId | Should -Be 123123123
             Get-SteamActiveUserId | Should -Be 789789789
             Stop-Steam
             Get-SteamActiveProcessId | Should -Be 0
             Get-SteamActiveUserId | Should -Be 0
-            Start-Steam
-            Get-SteamActiveProcessId | Should -Be 123123123
-            Get-SteamActiveUserId | Should -Be 789789789
         }
     }
 }
@@ -358,7 +352,7 @@ Describe "Install-Screenshots" {
 }
 
 Describe "Resize-SizeWithinLimits" {
-    It "Correct <MaxWidth> <MaxHeight> <MaxResolution> <Width> <Height> -> <ExpWidth> <ExpHeight>" -ForEach @(
+    It "Test <MaxWidth> <MaxHeight> <MaxResolution> <Width> <Height> -> <ExpWidth> <ExpHeight>" -ForEach @(
         @{ MaxWidth = 1000; MaxHeight = 1000; MaxResolution = 100000; Width = 200; Height = 100; ExpWidth = 200; ExpHeight = 100 }
         @{ MaxWidth = 50; MaxHeight = 1000; MaxResolution = 100000; Width = 200; Height = 100; ExpWidth = 50; ExpHeight = 25 }
         @{ MaxWidth = 1000; MaxHeight = 50; MaxResolution = 100000; Width = 200; Height = 100; ExpWidth = 100; ExpHeight = 50 }
@@ -382,5 +376,51 @@ Describe "Resize-SizeWithinLimits" {
     ) {
         $size = New-Object System.Drawing.Size $Width, $Height
         { Resize-SizeWithinLimits -MaxWidth $MaxWidth -MaxHeight $MaxHeight -MaxResolution $MaxResolution -Size $size } | Should -Throw "Cannot validate argument on parameter*"
+    }
+}
+
+Describe "Find-SizeForResolution" {
+    It "Exact <MaxWidth> <Resolution> -> <Width>x<Height>" -ForEach @(
+        @{ MaxWidth = 1000; Resolution = 100; Width = 10; Height = 10 }
+        @{ MaxWidth = 1000; Resolution = 120; Width = 12; Height = 10 }
+        @{ MaxWidth = 1000; Resolution = 113; Width = 113; Height = 1 }
+    ) {
+        $size = New-Object System.Drawing.Size $Width, $Height
+        Find-SizeForResolution -MaxWidth $MaxWidth -Resolution $Resolution | Should -Be $size
+        $Width * $Height | Should -Be $Resolution
+    }
+    It "Not exact <MaxWidth> <Resolution> -> <Width>x<Height>" -ForEach @(
+        @{ MaxWidth = 20; Resolution = 113; Width = 11; Height = 10 }
+    ) {
+        $size = New-Object System.Drawing.Size $Width, $Height
+        Find-SizeForResolution -MaxWidth $MaxWidth -Resolution $Resolution | Should -Be $size
+        $Width * $Height | Should -BeLessOrEqual $Resolution
+    }
+    It "Invalid parameters" {
+        { Find-SizeForResolution -MaxWidth -1 -Resolution 1 } | Should -Throw "Cannot validate argument on parameter*"
+        { Find-SizeForResolution -MaxWidth 1 -Resolution -1 } | Should -Throw "Cannot validate argument on parameter*"
+    }
+}
+
+Describe "Save-TestJpegForSize" {
+    It "Simple test" {
+        $path = Join-Path $TestDrive "testforsize.jpg"
+        $size = New-Object System.Drawing.Size 200, 100
+        Save-TestJpegForSize -Size $size -Path $path
+        $bitmap = New-Object System.Drawing.Bitmap $path
+        $bitmap.Width | Should -Be 200
+        $bitmap.Height | Should -Be 100
+        $bitmap.Dispose()
+    }
+}
+
+Describe "Save-TestJpegForResolution" {
+    It "Simple test" {
+        $path = Join-Path $TestDrive "testforsize.jpg"
+        Save-TestJpegForResolution -Resolution 120 -Path $path
+        $bitmap = New-Object System.Drawing.Bitmap $path
+        $bitmap.Width | Should -Be 12
+        $bitmap.Height | Should -Be 10
+        $bitmap.Dispose()
     }
 }

@@ -233,7 +233,7 @@ Path to the file to be saved.
 .EXAMPLE
 PS> $fileinfo = Get-Item "image.png"
 PS> $bitmap = New-Object System.Drawing.Bitmap $fileinfo.FullName
-PS> Install-ImageAsJpeg -MaxWidth 100 -MaxHeight 100 -MaxResolution 100000 -Quality 90 -FileInfo $fileinfo -Bitmap $bitmap -Path "image.jpg"
+PS> Install-ImageAsJpeg -MaxWidth 100 -MaxHeight 100 -MaxResolution 5000 -Quality 90 -FileInfo $fileinfo -Bitmap $bitmap -Path "image.jpg"
 PS> $bitmap.Dispose()
 #>
 Function Install-ImageAsJpeg {
@@ -558,8 +558,8 @@ Function Find-SizeForResolution {
     [CmdletBinding()]
     [OutputType([System.Drawing.Size])]
     Param(
-        [Int32]$MaxWidth = 16000,
-        [Int32]$Resolution
+        [ValidateScript({ $_ -Gt 0 })][Int32]$MaxWidth = 16000,
+        [ValidateScript({ $_ -Gt 0 })][Int32]$Resolution
     )
     [Int32]$minwidth = [Math]::Sqrt($Resolution)
     ForEach ($width In $minwidth..$MaxWidth) {
