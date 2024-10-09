@@ -198,6 +198,34 @@ Function Save-BitmapAsJpeg {
 
 <#
 .SYNOPSIS
+Steam screenshots path for given user and app.
+.DESCRIPTION
+This function checks that the userdata/<UserId> directory exists.
+If not, an exception is thrown.
+The screenshots directory may or may not yet exist.
+Use Install-SteamScreenshotsPath to create the correct folder structure.
+.PARAMETER UserId
+The steam user id.
+.PARAMETER AppId
+The steam app id.
+.OUTPUTS
+Screenshots path.
+#>
+Function Get-SteamScreenshotsPath {
+    [CmdletBinding()]
+    [OutputType([String])]
+    Param(
+        [Parameter(Mandatory)][ValidateScript({ Test-SteamUserId $_ })][Int32]$UserId,
+        [Parameter(Mandatory)][ValidateScript({ Test-SteamAppId $_ })][Int32]$AppId
+    )
+    [String]$userdata = "$(Get-SteamPath)\userdata\$UserId"
+    $userdataitem = Get-Item $userdata  # assert existence (steam install is botched if it does not exist)
+    Return Join-Path $userdataitem "760\remote\$AppId\screenshots"
+}
+
+
+<#
+.SYNOPSIS
 Install a steam screenshots directory for given user and app.
 .DESCRIPTION
 Directory for screenshots and thumbnails will be created if they do not exist.
@@ -206,34 +234,49 @@ The steam user id.
 .PARAMETER AppId
 The steam app id.
 .OUTPUTS
-Screenshots directory.
+The directories that have been created.
 #>
-Function Install-SteamScreenshotsDirectory {
+Function Install-SteamScreenshotsPath {
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([System.IO.DirectoryInfo])]
     Param(
         [Parameter(Mandatory)][ValidateScript({ Test-SteamUserId $_ })][Int32]$UserId,
         [Parameter(Mandatory)][ValidateScript({ Test-SteamAppId $_ })][Int32]$AppId
     )
-    [String]$userdata = "$(Get-SteamPath)\userdata\$UserId"
-    Get-Item $userdata | Out-Null  # assert existence (steam install is botched if it does not exist)
-    [String]$screenshots = "$userdata\760\remote\$AppId\screenshots"
-    [String]$thumbnails = "$screenshots\thumbnails"
-    Write-Debug "Screenshots path: $screenshots"
-    Write-Debug "Thumbnails path: $thumbnails"
+    [String]$screenshots = Get-SteamScreenshotsPath -UserId $UserId -AppId $AppId
+    [String]$thumbnails = Join-Path $screenshots "thumbnails"
     If ( -Not ( Test-Path $screenshots ) ) {
         If ( $PSCmdlet.ShouldProcess($screenshots, "new directory") ) {
             New-Item -Path $screenshots -ItemType "directory"
         }
     }
-    Else {
-        Get-Item -Path $screenshots
-    }
     If ( -not ( Test-Path $thumbnails ) ) {
         If ( $PSCmdlet.ShouldProcess($thumbnails, "new directory") ) {
-            New-Item -Path $thumbnails -ItemType "directory" | Out-Null
+            New-Item -Path $thumbnails -ItemType "directory"
         }
     }
+}
+
+<#
+.SYNOPSIS
+Get screenshot file name.
+.DESCRIPTION
+Converts the given date and time to the format that steam expects.
+A "{0}" placeholder is present to substitute the counter value.
+.PARAMETER DateTime
+The date and time of the screenshot.
+.OUTPUTS
+Screenshot file name.
+.EXAMPLE
+PS> (Get-SteamScreenshotName $(Get-Date)) -f 1
+#>
+Function Get-SteamScreenshotName {
+    [CmdletBinding()]
+    [OutputType([String])]
+    Param(
+        [Parameter(Mandatory)][DateTime]$DateTime
+    )
+    Return "$($DateTime.ToString("yyyyMMddHHmmss"))_{0}.jpg"
 }
 
 <#
@@ -243,7 +286,7 @@ Find an unused steam screenshot file path.
 Converts the given date and time to the format that steam expects.
 Then, tests if the path already exists,
 incrementing the counter part of the screenshot name until a non-existing path is found.
-.PARAMETER ScreenshotsDirectory
+.PARAMETER ScreenshotsPath
 A steam screenshots directory.
 .PARAMETER DateTime
 The date and time of the screenshot to be created.
@@ -254,16 +297,16 @@ Function Find-SteamNonExistingScreenshotName {
     [CmdletBinding()]
     [OutputType([String])]
     Param(
-        [Parameter(Mandatory)][System.IO.DirectoryInfo]$ScreenshotsDirectory,
+        [Parameter(Mandatory)][String]$ScreenshotsPath,
         [Parameter(Mandatory)][DateTime]$DateTime
     )
-    [String]$datestr = $DateTime.ToString("yyyyMMddHHmmss")
+    $name = Get-SteamScreenshotName -DateTime $DateTime
     [Int32]$num = 1
     Do {
-        $name = "{0}_{1}.jpg" -f $datestr, $num++
-        $path = "$ScreenshotsDirectory\$name"
+        $countedname = $name -f $num++
+        $path = Join-Path $ScreenshotsPath $countedname
     } While ( Test-Path $path )
-    Return $name
+    Return $countedname
 }
 
 <#
@@ -362,10 +405,10 @@ The steam app id.
 .INPUTS
 Image items to install.
 .OUTPUTS
-Paths of the generated screenshots and thumbnails.
+Generated folders, screenshots, and thumbnails.
 .EXAMPLE
 Install all png images from a folder into Grand Theft Auto V:
-PS> Get-Item folder\to\images\*.png | Install-SteamScreenshot -AppId 271590
+PS> Get-Item folder\to\images\*.png | Install-SteamScreenshot -UserId <...> -AppId 271590
 #>
 Function Install-SteamScreenshot {
     [CmdletBinding(SupportsShouldProcess)]
@@ -382,13 +425,20 @@ Function Install-SteamScreenshot {
     )
     Begin {
         Stop-Steam
-        [System.IO.DirectoryInfo]$screenshots = Install-SteamScreenshotsDirectory -UserId $UserId -AppId $AppId
-        [System.IO.DirectoryInfo]$thumbnails = Get-Item "$screenshots/thumbnails" -ea Stop
+        Install-SteamScreenshotsPath -UserId $UserId -AppId $AppId
+        # note: to support -WhatIf, can only assumes these folders exist inside of ShouldProcess
+        [String]$screenshots = Get-SteamScreenshotsPath -UserId $UserId -AppId $AppId
+        [String]$thumbnails = Join-Path $screenshots "thumbnails"
     }
     Process {
         Write-Verbose "Loading image"
         $image = New-Object System.Drawing.Bitmap $FileInfo.FullName
-        [String]$newscreenshotname = Find-SteamNonExistingScreenshotName -ScreenshotsDirectory $screenshots -DateTime $FileInfo.LastWriteTime
+        [String]$newscreenshotname = If ( $WhatIfPreference ) {
+            (Get-SteamScreenshotName -DateTime $FileInfo.LastWriteTime) -f "?"  # counter not yet final
+        }
+        Else {
+            Find-SteamNonExistingScreenshotName -ScreenshotsPath $screenshots -DateTime $FileInfo.LastWriteTime
+        }
         [String]$newscreenshot = Join-Path $screenshots $newscreenshotname
         $screenshotsize = Resize-SizeWithinLimits -MaxWidth $MaxSize -MaxHeight $MaxSize -MaxResolution $MaxResolution -Size $image.Size
         If ( $screenshotsize -Eq $image.Size ) {
@@ -406,7 +456,7 @@ Function Install-SteamScreenshot {
             }
         }
         Else {
-            If ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "resize to $($screenshotsize.Width)x$($screenshotsize.Height) and save as $newscreenshot" ) ) {
+            If ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "save as $newscreenshot resized to $($screenshotsize.Width)x$($screenshotsize.Height)" ) ) {
                 $screenshotresized = New-Object System.Drawing.Bitmap $image, $screenshotsize
                 Save-BitmapAsJpeg -Bitmap $screenshotresized -Path $newscreenshot -Quality $ConversionQuality
                 $screenshotresized.Dispose()
@@ -421,7 +471,7 @@ Function Install-SteamScreenshot {
             Resize-SizeWithinLimits -MaxWidth $safesize -MaxHeight $MaxSize -MaxResolution $MaxResolution -Size $image.Size
         }
         $newthumbnail = Join-Path $thumbnails $newscreenshotname
-        if ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "resize to $($thumbnailsize.Width)x$($thumbnailsize.Height) and save as $newthumbnail" ) ) {
+        if ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "save as $newthumbnail resized to $($thumbnailsize.Width)x$($thumbnailsize.Height)" ) ) {
             $resized = New-Object System.Drawing.Bitmap $image, $thumbnailsize
             Save-BitmapAsJpeg -Bitmap $resized -Path $newthumbnail -Quality $ThumbnailQuality
             $resized.Dispose()
