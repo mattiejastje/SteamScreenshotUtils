@@ -142,7 +142,7 @@ Function Stop-Steam {
             & $steamexe -shutdown
             While ( $(Get-SteamActiveProcessId) -Ne 0 ) {
                 Write-Verbose "Awaiting steam shutdown..."
-                Start-Sleep -Seconds 1
+                Start-Sleep -Milliseconds 250
             }
         }
     }
@@ -163,7 +163,7 @@ Function Start-Steam {
             & $steamexe
             While ( $(Get-SteamActiveProcessId) -Eq 0 ) {
                 Write-Verbose "Awaiting steam start..."
-                Start-Sleep -Seconds 1
+                Start-Sleep -Milliseconds 250
             }
         }
     }
@@ -430,9 +430,9 @@ Function Install-SteamScreenshot {
     Param(
         [ValidateScript({ $_ -Gt 0 })][Int32]$MaxSize = 16000, # https://github.com/awthwathje/SteaScree/issues/4
         [ValidateScript({ $_ -Gt 0 })][Int32]$MaxResolution = 26210175, # https://github.com/awthwathje/SteaScree/issues/4
+        [ValidateScript({ $_ -Gt 0 })][Int32]$MinThumbnailSize = 144, # gives 256x144 for 16:9 pictures
         [ValidateScript({ ( 0 -Le $_ ) -And ( $_ -Le 100 ) })][Int32]$ConversionQuality = 90, # seems to be steam default according to "magick identify -verbose"
         [ValidateScript({ ( 0 -Le $_ ) -And ( $_ -Le 100 ) })][Int32]$ThumbnailQuality = 95, # seems to be steam default according to "magick identify -verbose"
-        [ValidateScript({ $_ -Gt 0 })][Int32]$MinThumbnailSize = 144, # gives 256x144 for 16:9 pictures
         [Parameter(Mandatory)][ValidateScript({ Test-SteamUserId $_ })][Int32]$UserId,
         [Parameter(Mandatory)][ValidateScript({ Test-SteamAppId $_ })][Int32]$AppId,
         [Parameter(Mandatory, ValueFromPipeline)][System.IO.FileInfo]$FileInfo
@@ -446,7 +446,13 @@ Function Install-SteamScreenshot {
     }
     Process {
         Write-Verbose "Loading image"
-        $image = New-Object System.Drawing.Bitmap $FileInfo.FullName
+        Try {
+            $image = New-Object System.Drawing.Bitmap $FileInfo.FullName
+        }
+        Catch [System.ArgumentException] {
+            Write-Error "Cannot load '$($FileInfo.FullName)' because file is invalid or format is not supported."
+            Return
+        }
         [String]$newscreenshotname = If ( $WhatIfPreference ) {
             (Get-SteamScreenshotName -DateTime $FileInfo.LastWriteTime) -f "?"  # counter not yet final
         }

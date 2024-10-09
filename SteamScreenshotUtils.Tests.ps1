@@ -13,21 +13,7 @@ BeforeAll {
         )
         [Int32]$activeuserid = If ( $UserIds.Length ) { $UserIds[0] } Else { 0 }
         New-Item TestRegistry:\Steam
-        New-ItemProperty -Path TestRegistry:\Steam -Name "SteamPath" -Value "TestDrive:/steam"
-        New-ItemProperty -Path TestRegistry:\Steam -Name "SteamExe" -Value "TestDrive:/steam/steam.ps1"
-        New-Item TestDrive:\steam -ItemType "directory"
-        New-Item TestDrive:\steam\steam.ps1 -ItemType "file" -Value "
-Param([Switch]`$shutdown = `$false)
-If ( `$shutdown ) {
-    Set-ItemProperty -Path TestRegistry:\Steam\ActiveProcess -Name `"pid`" -Value 0
-    Set-ItemProperty -Path TestRegistry:\Steam\ActiveProcess -Name `"ActiveUser`" -Value 0
-}
-Else {
-    Set-ItemProperty -Path TestRegistry:\Steam\ActiveProcess -Name `"pid`" -Value $ProcessId
-    Set-ItemProperty -Path TestRegistry:\Steam\ActiveProcess -Name `"ActiveUser`" -Value $activeuserid
-}
-"
-        New-Item TestRegistry:\Steam\ActiveProcess
+        $activeprocess = New-Item TestRegistry:\Steam\ActiveProcess
         If ( $Running ) {
             New-ItemProperty -Path TestRegistry:\Steam\ActiveProcess -Name "pid" -Value $ProcessId
             New-ItemProperty -Path TestRegistry:\Steam\ActiveProcess -Name "ActiveUser" -Value $activeuserid
@@ -36,6 +22,26 @@ Else {
             New-ItemProperty -Path TestRegistry:\Steam\ActiveProcess -Name "pid" -Value 0
             New-ItemProperty -Path TestRegistry:\Steam\ActiveProcess -Name "ActiveUser" -Value 0
         }
+        New-ItemProperty -Path TestRegistry:\Steam -Name "SteamPath" -Value "TestDrive:/steam"
+        New-ItemProperty -Path TestRegistry:\Steam -Name "SteamExe" -Value "TestDrive:/steam/steam.ps1"
+        New-Item TestDrive:\steam -ItemType "directory"
+        New-Item TestDrive:\steam\steam.ps1 -ItemType "file" -Value "
+Param([Switch]`$shutdown = `$false)
+If ( `$shutdown ) {
+    Start-Job -ScriptBlock {
+        Start-Sleep -Milliseconds 10
+        Set-ItemProperty -Path $($activeprocess.PSPath) -Name `"pid`" -Value 0
+        Set-ItemProperty -Path $($activeprocess.PSPath) -Name `"ActiveUser`" -Value 0
+    }
+}
+Else {
+    Start-Job -ScriptBlock {
+        Start-Sleep -Milliseconds 10
+        Set-ItemProperty -Path $($activeprocess.PSPath) -Name `"pid`" -Value $ProcessId
+        Set-ItemProperty -Path $($activeprocess.PSPath) -Name `"ActiveUser`" -Value $activeuserid
+    }
+}
+"
         New-Item TestRegistry:\Steam\Apps
         $AppIds | ForEach-Object {
             New-Item TestRegistry:\Steam\Apps\$_
@@ -208,10 +214,12 @@ Describe "Install-Screenshots" {
         $image = New-Object System.Drawing.Bitmap 384, 512
         $image.Save($(Join-Path $TestDrive "testportrait.jpg"), [System.Drawing.Imaging.ImageFormat]::Jpeg)
         $image.Dispose()
+        New-Item -Path "TestDrive:\invalid.jpg"
         Set-ItemProperty -Path "TestDrive:\test.jpg" -Name LastWriteTime -Value $(Get-Date -Date "2024-01-01 00:00:00")
         Set-ItemProperty -Path "TestDrive:\test.png" -Name LastWriteTime -Value $(Get-Date -Date "2024-01-01 00:00:01")
         Set-ItemProperty -Path "TestDrive:\testlarge.jpg" -Name LastWriteTime -Value $(Get-Date -Date "2024-01-01 00:00:02")
         Set-ItemProperty -Path "TestDrive:\testportrait.jpg" -Name LastWriteTime -Value $(Get-Date -Date "2024-01-01 00:00:03")
+        Set-ItemProperty -Path "TestDrive:\invalid.jpg" -Name LastWriteTime -Value $(Get-Date -Date "2024-01-01 00:00:04")
     }
     Context "Steam not installed" {
         It "Cannot find path" {
@@ -230,6 +238,23 @@ Describe "Install-Screenshots" {
         }
         It "Invalid AppId" {
             { Get-Item "TestDrive:\test.jpg" | Install-SteamScreenshot -UserId 789789789 -AppId 1 } | Should -Throw "Cannot validate argument*"
+        }
+        It "Invalid MaxSize" {
+            { Get-Item "TestDrive:\test.jpg" | Install-SteamScreenshot -UserId 789789789 -AppId 456456456 -MaxSize 0 } | Should -Throw "Cannot validate argument*"
+        }
+        It "Invalid MaxResolution" {
+            { Get-Item "TestDrive:\test.jpg" | Install-SteamScreenshot -UserId 789789789 -AppId 456456456 -MaxResolution 0 } | Should -Throw "Cannot validate argument*"
+        }
+        It "Invalid MinThumbnailSize" {
+            { Get-Item "TestDrive:\test.jpg" | Install-SteamScreenshot -UserId 789789789 -AppId 456456456 -MinThumbnailSize 0 } | Should -Throw "Cannot validate argument*"
+        }
+        It "Invalid ConversionQuality" {
+            { Get-Item "TestDrive:\test.jpg" | Install-SteamScreenshot -UserId 789789789 -AppId 456456456 -ConversionQuality -1 } | Should -Throw "Cannot validate argument*"
+            { Get-Item "TestDrive:\test.jpg" | Install-SteamScreenshot -UserId 789789789 -AppId 456456456 -ConversionQuality 101 } | Should -Throw "Cannot validate argument*"
+        }
+        It "Invalid ThumbnailQuality" {
+            { Get-Item "TestDrive:\test.jpg" | Install-SteamScreenshot -UserId 789789789 -AppId 456456456 -ThumbnailQuality -1 } | Should -Throw "Cannot validate argument*"
+            { Get-Item "TestDrive:\test.jpg" | Install-SteamScreenshot -UserId 789789789 -AppId 456456456 -ThumbnailQuality 101 } | Should -Throw "Cannot validate argument*"
         }
         It "WhatIf" {
             $screenshot = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\20240101000000_1.jpg"
@@ -315,6 +340,14 @@ Describe "Install-Screenshots" {
             $thumbnailimage.Height | Should -Be 192
             $screenshotimage.Dispose()
             $thumbnailimage.Dispose()
+        }
+        It "Invalid image" {
+            $screenshot = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\20240101000000_2.jpg"
+            $thumbnail = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\thumbnails\20240101000000_2.jpg"
+            $(Get-Item "TestDrive:\invalid.jpg" -ea Stop), $(Get-Item "TestDrive:\test.jpg" -ea Stop) | Install-SteamScreenshot -UserId 789789789 -AppId 456456456 | Should -Be $screenshot, $thumbnail
+        }
+        It "Invalid image with error action stop" {
+            { Get-Item "TestDrive:\invalid.jpg" -ea Stop | Install-SteamScreenshot -UserId 789789789 -AppId 456456456 -ErrorAction Stop } | Should -Throw "Cannot load*"
         }
     }
 }
