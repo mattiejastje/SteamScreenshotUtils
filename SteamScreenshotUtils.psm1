@@ -485,7 +485,7 @@ Function Install-SteamScreenshot {
             Resize-SizeWithinLimits -MaxWidth $safesize -MaxHeight $MaxSize -MaxResolution $MaxResolution -Size $image.Size
         }
         $newthumbnail = Join-Path $thumbnails $newscreenshotname
-        if ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "save as $newthumbnail resized to $($thumbnailsize.Width)x$($thumbnailsize.Height)" ) ) {
+        If ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "save as $newthumbnail resized to $($thumbnailsize.Width)x$($thumbnailsize.Height)" ) ) {
             $resized = New-Object System.Drawing.Bitmap $image, $thumbnailsize
             Save-BitmapAsJpeg -Bitmap $resized -Path $newthumbnail -Quality $ThumbnailQuality
             $resized.Dispose()
