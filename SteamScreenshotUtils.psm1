@@ -64,7 +64,7 @@ Fetches the user ids from the registry.
 .OUTPUTS
 The user ids.
 #>
-Function Get-SteamUserIds {
+Function Get-SteamUserId {
     Get-Item "$(Get-SteamRegistryRoot)\Users" -ea Stop | Out-Null
     Return [Int32[]]@(Get-ChildItem "$(Get-SteamRegistryRoot)\Users" -Name -ea Stop)
 }
@@ -248,7 +248,7 @@ Function Install-ImageAsJpeg {
         [Parameter(Mandatory)][System.Drawing.Bitmap]$Bitmap,
         [Parameter(Mandatory)][String]$Path
     )
-    $size = Resize-SizeWithinLimits -MaxWidth $MaxWidth -MaxHeight $MaxHeight -MaxResolution $MaxResolution -Size $Bitmap.Size
+    $size = Resize-SizeWithinLimit -MaxWidth $MaxWidth -MaxHeight $MaxHeight -MaxResolution $MaxResolution -Size $Bitmap.Size
     If ( $size -Eq $Bitmap.Size ) {
         If ( Test-JpegHeader $FileInfo.Fullname ) {
             If ( $PSCmdlet.ShouldProcess($FileInfo.FullName, "copy to $Path" ) ) {
@@ -403,7 +403,7 @@ Original size.
 .OUTPUTS
 Scaled size.
 #>
-Function Resize-SizeWithinLimits {
+Function Resize-SizeWithinLimit {
     Param(
         [Parameter(Mandatory)][ValidateScript({ $_ -Gt 0 })][Int32]$MaxWidth,
         [Parameter(Mandatory)][ValidateScript({ $_ -Gt 0 })][Int32]$MaxHeight,

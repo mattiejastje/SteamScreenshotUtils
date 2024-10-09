@@ -70,8 +70,8 @@ Describe "Registry" {
         It "Get-SteamPath" {
             { Get-SteamPath } | Should -Throw "Cannot find path*"
         }
-        It "Get-SteamUserIds" {
-            { Get-SteamUserIds } | Should -Throw "Cannot find path*"
+        It "Get-SteamUserId" {
+            { Get-SteamUserId } | Should -Throw "Cannot find path*"
         }
         It "Find-SteamAppIdByName" {
             { Find-SteamAppIdByName -Regex "Test App" } | Should -Throw "Cannot find path*"
@@ -99,8 +99,8 @@ Describe "Registry" {
         It "Get-SteamPath" {
             Get-SteamPath | Should -Be "TestDrive:\steam"
         }
-        It "Get-SteamUserIds" {
-            Get-SteamUserIds | Sort-Object | Should -Be @(777888999,789789789)
+        It "Get-SteamUserId" {
+            Get-SteamUserId | Sort-Object | Should -Be @(777888999,789789789)
         }
         It "Find-SteamAppIdByName" {
             Find-SteamAppIdByName "app" | Sort-Object | Should -Be @(444555666,456456456)
@@ -351,7 +351,7 @@ Describe "Install-Screenshots" {
     }
 }
 
-Describe "Resize-SizeWithinLimits" {
+Describe "Resize-SizeWithinLimit" {
     It "Test <MaxWidth> <MaxHeight> <MaxResolution> <Width> <Height> -> <ExpWidth> <ExpHeight>" -ForEach @(
         @{ MaxWidth = 1000; MaxHeight = 1000; MaxResolution = 100000; Width = 200; Height = 100; ExpWidth = 200; ExpHeight = 100 }
         @{ MaxWidth = 50; MaxHeight = 1000; MaxResolution = 100000; Width = 200; Height = 100; ExpWidth = 50; ExpHeight = 25 }
@@ -364,7 +364,7 @@ Describe "Resize-SizeWithinLimits" {
     ) {
         $size = New-Object System.Drawing.Size $Width, $Height
         $expsize = New-Object System.Drawing.Size $ExpWidth, $ExpHeight
-        Resize-SizeWithinLimits -MaxWidth $MaxWidth -MaxHeight $MaxHeight -MaxResolution $MaxResolution -Size $size | Should -Be $expsize
+        Resize-SizeWithinLimit -MaxWidth $MaxWidth -MaxHeight $MaxHeight -MaxResolution $MaxResolution -Size $size | Should -Be $expsize
     }
     It "Invalid parameters <MaxWidth> <MaxHeight> <MaxResolution> <Width> <Height>"  -ForEach @(
         @{ MaxWidth = 0; MaxHeight = 1; MaxResolution = 1; Width = 1; Height = 1 }
@@ -375,7 +375,7 @@ Describe "Resize-SizeWithinLimits" {
         @{ MaxWidth = 1; MaxHeight = 1; MaxResolution = 1; Width = 0; Height = 0 }
     ) {
         $size = New-Object System.Drawing.Size $Width, $Height
-        { Resize-SizeWithinLimits -MaxWidth $MaxWidth -MaxHeight $MaxHeight -MaxResolution $MaxResolution -Size $size } | Should -Throw "Cannot validate argument on parameter*"
+        { Resize-SizeWithinLimit -MaxWidth $MaxWidth -MaxHeight $MaxHeight -MaxResolution $MaxResolution -Size $size } | Should -Throw "Cannot validate argument on parameter*"
     }
 }
 
