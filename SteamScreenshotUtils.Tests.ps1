@@ -349,6 +349,11 @@ Describe "Install-Screenshots" {
         It "Invalid image with error action stop" {
             { Get-Item "TestDrive:\invalid.jpg" -ea Stop | Install-SteamScreenshot -UserId 789789789 -AppId 456456456 -ErrorAction Stop } | Should -Throw "Cannot load*"
         }
+        It "Formats" {
+            $output = Get-ChildItem -Path $PSScriptRoot -Filter test*.* | Install-SteamScreenshot -UserId 777888999 -AppId 444555666
+            # 2 folders, 9 screenshots, 9 thumbnails
+            $output.Length | Should -Be 20
+        }
     }
 }
 

@@ -18,9 +18,18 @@ even though unlikely, there's always a chance that something breaks.
 ## Features
 
 - Installs screenshots in the expected locations for steam to find them.
-  Will not touch your screenshot database, lessening the risk of database corruption.
 
-- Automatically stops steam before installing screenshots, lessening the risk of database corruption.
+- Automatically generates thumbnails required for steam.
+  For screenshots with extreme aspect ratios,
+  the thumbnail generation is better than steam's own algorithm
+  resulting in thumbnails that are less pixelated.
+
+- Automatically stops steam before installing screenshots to avoid database corruption.
+
+- Automatically scales images if they exceed steam's upload limits.
+
+- Automatically converts images to jpeg if they are in a different format.
+  Supported formats are bmp, gif, tif, and png.
 
 - Support for "what if" and "confirm" modes:
   you can do a dry run, and every action can be individually confirmed if so desired.
@@ -28,6 +37,13 @@ even though unlikely, there's always a chance that something breaks.
 - Highly configurable.
 
 - Can be integrated into other scripts.
+
+## Limitations
+
+- Will *not* edit the screenshots database file, ``screenshots.vdf``,
+  to avoid corrupting this file by accident.
+  Steam is able to update this file by itself when it notices the new files,
+  although this may take a few seconds after starting up steam's screenshot manager.
 
 ## Related Projects
 
@@ -50,12 +66,4 @@ even though unlikely, there's always a chance that something breaks.
     (Note that steam natively does not create progressive jpeg files either
     though will convert and re-encode them upon upload.)
 
-  - SteaScree modifies the screenshots database directly
-    i.e. it edits the ``screenshots.vdf`` file.
-    SteamScreenshotUtils never touches this file,
-    and instead leaves it to steam itself to recognize the new files
-    and update its database.
-    Consequently, with SteamScreenshotUtils
-    the screenshots may take some time to show up in the screenshot manager.
-    The upside is that SteamScreenshotUtils
-    has less chance of accidentally corrupting the ``screenshots.vdf`` file.
+  - SteaScree modifies the screenshots database file, ``screenshots.vdf``.
