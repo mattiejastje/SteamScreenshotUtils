@@ -424,3 +424,39 @@ Describe "Save-TestJpegForResolution" {
         $bitmap.Dispose()
     }
 }
+
+Describe "Split-SteamVdf" {
+    It "Test <Vdf> <Tokens>" -ForEach @(
+        @{ Vdf="hi"; Tokens="hi" },
+        @{ Vdf="  hi  "; Tokens="hi" },
+        @{ Vdf='"hi"'; Tokens='"hi"' },
+        @{ Vdf='  "hi"  '; Tokens='"hi"' },
+        @{ Vdf='"h\"i"'; Tokens='"h\"i"' },
+        @{ Vdf='a b "c" "d" e "f" g "h" 1 2 "3"'; Tokens=@("a", "b", '"c"', '"d"', "e", '"f"', "g", '"h"', "1", "2", '"3"') },
+        @{ Vdf='a b"c""d" e"f"g"h" 1 2"3"'; Tokens=@("a", "b", '"c"', '"d"', "e", '"f"', "g", '"h"', "1", "2", '"3"') },
+        @{ Vdf="hi { there champ }"; Tokens=@("hi", "{", "there", "champ", "}") },
+        @{ Vdf="hi{there champ}"; Tokens=@("hi", "{", "there", "champ", "}") }
+        @{ Vdf="hi`n{`n`t`tthere`t`tchamp`n}"; Tokens=@("hi", "{", "there", "champ", "}") }
+    ) {
+        $Vdf | Split-SteamVdf | Should -Be $Tokens
+        $Vdf -Split "`n" | Split-SteamVdf | Should -Be $Tokens
+    }
+    It "Cannot find token" {
+        { '"hi' | Split-SteamVdf } | Should -Throw "Cannot find token*"
+    }
+}
+
+Describe "Format-SteamVdf" {
+    It "Simple example" {
+        "hi{there champ}" | Format-SteamVdf | Should -Be @("hi", "{", "`tthere`t`tchamp", "}")
+    }
+    It "Subkeys without key" {
+        { "{there champ}" | Format-SteamVdf } | Should -Throw "Subkeys without key*"
+    }
+    It "Final subkey missing value" {
+        { "hi{there}" | Format-SteamVdf } | Should -Throw "Key*is missing a value*"
+    }
+    It "Too many }" {
+        { "}" | Format-SteamVdf } | Should -Throw "Too many }*"
+    }
+}

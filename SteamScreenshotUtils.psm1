@@ -643,3 +643,151 @@ Function Save-TestJpegForResolution {
         Save-TestJpegForSize -Size $size -Path $Path -Quality $Quality
     }
 }
+
+<#
+.SYNOPSIS
+Split vdf input into tokens.
+.DESCRIPTION
+Split vdf input into tokens.
+Tokens are either unquoted,
+quoted (i.e. start and end with the " character),
+the { character, or the } character.
+The quote " character cannot appear within unquoted tokens.
+The following escaped characters can appear within quoted tokens: \\, \n, \t, and \".
+.INPUTS
+Lines of the file.
+.OUTPUTS
+The saved file path.
+.LINK
+https://developer.valvesoftware.com/wiki/KeyValues
+#>
+Function Split-SteamVdf {
+    Param(
+        [Parameter(Mandatory, ValueFromPipeline)][String]$Line
+    )
+    Begin {
+        # non-quoted tokens
+        # - end with a whitespace, {, } or "
+        [String]$raw = '[^"{}\s]+|{|}'
+        # quoted tokens
+        # - start and end with "
+        # - may contain escape sequences such as \n, \t, \\, and \"
+        [String]$quoted = '"([^"\\]|\\.)*"'
+        [String]$pattern = "^(\s+|(?<Token>$raw|$quoted))"
+    }
+    Process {
+        While ( $Line ) {
+            If ( $Line -Match $pattern ) {
+                If ( $null -Ne $Matches.Token ) {
+                    Write-Output $Matches.Token
+                }
+                $Line = $Line.Substring($Matches[0].Length)
+            }
+            Else {
+                Throw "Cannot find token at location '$Line'."
+            }
+        }
+    }
+}
+
+<#
+.SYNOPSIS
+Visit vdf tokens.
+.DESCRIPTION
+Visit vdf tokens and call script blocks to process the data.
+.PARAMETER ValueScript
+Script block for processing a value.
+Invoked with stack of keys as first argument, and value as second argument.
+.PARAMETER SubkeysEnterScript
+Script block for processing when subkeys are entered.
+Invoked with stack of keys as argument.
+.PARAMETER SubkeysExitScript
+Script block for processing when subkeys are exited.
+Invoked with stack of keys as argument.
+.INPUTS
+Vdf tokens (typically, the output of Split-SteamVdf).
+.OUTPUTS
+Output of the provided script blocks for all values and subkeys.
+.LINK
+https://developer.valvesoftware.com/wiki/KeyValues
+#>
+Function Invoke-SteamVdfVisitor {
+    Param(
+        [Parameter(Mandatory)][ScriptBlock]$ValueScript,
+        [Parameter(Mandatory)][ScriptBlock]$SubkeysEnterScript,
+        [Parameter(Mandatory)][ScriptBlock]$SubkeysExitScript,
+        [Parameter(Mandatory, ValueFromPipeline)][String]$Token
+    )
+    Begin {
+        $key = $null
+        [System.Collections.Stack]$stack = @()
+    }
+    Process {
+        If ( "{" -Eq $Token ) {
+            If ( $null -Eq $key ) {
+                Throw "Subkeys without key at $($stack -Join " < ")."
+            }
+            $SubkeysEnterScript.Invoke($stack)
+            $key = $null
+        }
+        ElseIf ( "}" -Eq $Token ) {
+            If ( $null -Ne $key ) {
+                Throw "Key at $($stack -Join " < ") is missing a value."
+            }
+            If ( $stack.Count -Eq 0 ) {
+                Throw "Too many }."
+            }
+            $SubkeysExitScript.Invoke($stack)
+            $stack.Pop() | Out-Null
+            $key = $null
+        }
+        ElseIf ( $null -Eq $key ) {
+            $key = $Token
+            $stack.Push($key)
+        }
+        Else {
+            $ValueScript.Invoke($stack, $Token)
+            $stack.Pop() | Out-Null
+            $key = $null
+        }
+    }
+}
+
+Function Format-SteamVdfSubkeysEnter {
+    Param([System.Collections.Stack]$Stack)
+    [String]$tabs = "`t" * ($Stack.Count - 1)
+    "$tabs$($Stack.Peek())"
+    "$tabs{"
+}
+
+Function Format-SteamVdfSubkeysExit {
+    Param([System.Collections.Stack]$Stack)
+    [String]$tabs = "`t" * ($Stack.Count - 1)
+    "$tabs}"
+}
+
+Function Format-SteamVdfValue {
+    Param([System.Collections.Stack]$Stack, [String]$Value)
+    [String]$tabs = "`t" * ($Stack.Count - 1)
+    "$tabs$($stack.Peek())`t`t$Value"
+}
+
+<#
+.SYNOPSIS
+Process and reformat vdf input.
+.DESCRIPTION
+Reformats a vdf as usually done by steam.
+.INPUTS
+Lines of the file.
+.OUTPUTS
+Reformatted lines.
+#>
+Function Format-SteamVdf {
+    Param([Parameter(Mandatory, ValueFromPipeline)][String]$Line)
+    End {
+        $Input | Split-SteamVdf | Invoke-SteamVdfVisitor `
+            -SubkeysEnterScript ${Function:Format-SteamVdfSubkeysEnter} `
+            -SubkeysExitScript ${Function:Format-SteamVdfSubkeysExit} `
+            -ValueScript ${Function:Format-SteamVdfValue}
+    }
+}
