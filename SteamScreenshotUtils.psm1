@@ -1,7 +1,7 @@
 Add-Type -AssemblyName System.Drawing
 
 Function Get-SteamRegistryRoot {
-    Return "HKCU:\Software\Valve\Steam"
+    "HKCU:\Software\Valve\Steam"
 }
 
 <#
@@ -14,7 +14,7 @@ Stops if registry key is not present (for instance, if steam is not installed).
 The steam process id, or 0 if steam is not running.
 #>
 Function Get-SteamActiveProcessId {
-    Return [Int32](Get-ItemProperty "$(Get-SteamRegistryRoot)\ActiveProcess" -ea Stop).pid
+    [Int32](Get-ItemProperty "$(Get-SteamRegistryRoot)\ActiveProcess" -ea Stop).pid
 }
 
 <#
@@ -27,7 +27,7 @@ Stops if registry key is not present (for instance, if steam is not installed).
 The active user id, or 0 if steam is not running.
 #>
 Function Get-SteamActiveUserId {
-    Return [Int32](Get-ItemProperty "$(Get-SteamRegistryRoot)\ActiveProcess" -ea Stop).ActiveUser
+    [Int32](Get-ItemProperty "$(Get-SteamRegistryRoot)\ActiveProcess" -ea Stop).ActiveUser
 }
 
 <#
@@ -40,7 +40,7 @@ Stops if registry key is not present (for instance, if steam is not installed).
 The path to the steam executable.
 #>
 Function Get-SteamExe {
-    Return "$((Get-ItemProperty $(Get-SteamRegistryRoot) -ea Stop).SteamExe)".Replace("/", "\")
+    "$((Get-ItemProperty $(Get-SteamRegistryRoot) -ea Stop).SteamExe)".Replace("/", "\")
 }
 
 <#
@@ -53,7 +53,7 @@ Stops if registry key is not present (for instance, if steam is not installed).
 The path to the steam installation directory.
 #>
 Function Get-SteamPath {
-    Return "$((Get-ItemProperty $(Get-SteamRegistryRoot) -ea Stop).SteamPath)".Replace("/", "\")
+    "$((Get-ItemProperty $(Get-SteamRegistryRoot) -ea Stop).SteamPath)".Replace("/", "\")
 }
 
 <#
@@ -66,7 +66,7 @@ The user ids.
 #>
 Function Get-SteamUserId {
     Get-Item "$(Get-SteamRegistryRoot)\Users" -ea Stop | Out-Null
-    Return [Int32[]]@(Get-ChildItem "$(Get-SteamRegistryRoot)\Users" -Name -ea Stop)
+    [Int32[]]@(Get-ChildItem "$(Get-SteamRegistryRoot)\Users" -Name -ea Stop)
 }
 
 <#
@@ -78,7 +78,7 @@ Test whether steam user id exists in the registry.
 Function Test-SteamUserId {
     Param([Parameter(Mandatory)][Int32]$UserId)
     Get-Item "$(Get-SteamRegistryRoot)\Users" -ea Stop | Out-Null
-    Return Test-Path "$(Get-SteamRegistryRoot)\Users\$UserId"
+    Test-Path "$(Get-SteamRegistryRoot)\Users\$UserId"
 }
 
 <#
@@ -109,7 +109,7 @@ Function Find-SteamAppIdByName {
         $property = Get-ItemProperty $_.PSPath
         If ( $property.Name -Match $Regex) {
             Write-Verbose $property.Name
-            Return [Int32]($property.PSChildName)
+            [Int32]($property.PSChildName)
         }
     }
 }
@@ -124,7 +124,7 @@ Function Test-SteamAppId {
     [CmdletBinding()]
     Param([Parameter(Mandatory)][Int32]$AppId)
     Get-Item "$(Get-SteamRegistryRoot)\Apps" -ea Stop | Out-Null
-    Return Test-Path "$(Get-SteamRegistryRoot)\Apps\$AppId"
+    Test-Path "$(Get-SteamRegistryRoot)\Apps\$AppId"
 }
 
 <#
@@ -297,7 +297,7 @@ Function Get-SteamScreenshotsPath {
     )
     [String]$userdata = "$(Get-SteamPath)\userdata\$UserId"
     $userdataitem = Get-Item $userdata  # assert existence (steam install is botched if it does not exist)
-    Return Join-Path $userdataitem "760\remote\$AppId\screenshots"
+    Join-Path $userdataitem "760\remote\$AppId\screenshots"
 }
 
 
@@ -353,7 +353,7 @@ Function Get-SteamScreenshotName {
     Param(
         [Parameter(Mandatory)][DateTime]$DateTime
     )
-    Return "$($DateTime.ToString("yyyyMMddHHmmss"))_{0}.jpg"
+    "$($DateTime.ToString("yyyyMMddHHmmss"))_{0}.jpg"
 }
 
 <#
@@ -383,7 +383,7 @@ Function Find-SteamNonExistingScreenshotName {
         $countedname = $name -f $num++
         $path = Join-Path $ScreenshotsPath $countedname
     } While ( Test-Path $path )
-    Return $countedname
+    $countedname
 }
 
 <#
@@ -654,10 +654,14 @@ quoted (i.e. start and end with the " character),
 the { character, or the } character.
 The quote " character cannot appear within unquoted tokens.
 The following escaped characters can appear within quoted tokens: \\, \n, \t, and \".
+Quoted tokens are returned without quotes and with escaped characters replaced.
 .INPUTS
 Lines of the file.
 .OUTPUTS
-The saved file path.
+The tokens.
+Note that some tokens may be empty. Therefore, users of the pipeline should use
+[Parameter(Mandatory, ValueFromPipeline)][AllowEmptyString()][String]$Token
+to consume tokens.
 .LINK
 https://developer.valvesoftware.com/wiki/KeyValues
 #>
@@ -666,26 +670,31 @@ Function Split-SteamVdf {
         [Parameter(Mandatory, ValueFromPipeline)][String]$Line
     )
     Begin {
-        # non-quoted tokens
-        # - end with a whitespace, {, } or "
-        [String]$raw = '[^"{}\s]+|{|}'
+        # unquoted tokens
+        # - opening bracket { or closing bracket }
+        # - key or value ending with a whitespace, {, } or "
+        [String]$unquoted = '^([^"{}\s]+|{|})'
         # quoted tokens
         # - start and end with "
         # - may contain escape sequences such as \n, \t, \\, and \"
-        [String]$quoted = '"([^"\\]|\\.)*"'
-        [String]$pattern = "^(\s+|(?<Token>$raw|$quoted))"
+        [String]$quoted = '^"([^"\\]|\\.)*"'
+        [String]$whitespace = "^\s+"
     }
     Process {
         While ( $Line ) {
-            If ( $Line -Match $pattern ) {
-                If ( $null -Ne $Matches.Token ) {
-                    Write-Output $Matches.Token
-                }
-                $Line = $Line.Substring($Matches[0].Length)
+            If ( $Line -Match $unquoted ) {
+                Write-Output $Matches[0]
+            }
+            ElseIf ( $Line -Match $quoted ) {
+                Write-Output $Matches[0].Substring(1, $Matches[0].Length - 2).Replace('\n', "`n").Replace('\t', "`t").Replace('\"', '"').Replace('\\', "\")
+            }
+            ElseIf ( $Line -Match $whitespace ) {
+                # no output
             }
             Else {
                 Throw "Cannot find token at location '$Line'."
             }
+            $Line = $Line.Substring($Matches[0].Length)
         }
     }
 }
@@ -698,12 +707,17 @@ Visit vdf tokens and call script blocks to process the data.
 .PARAMETER ValueScript
 Script block for processing a value.
 Invoked with stack of keys as first argument, and value as second argument.
-.PARAMETER SubkeysEnterScript
+Note that the value may be the empty string.
+Suggested parameter specification is
+Param([System.Collections.Stack]$Stack, [AllowEmptyString()][String]$Value).
+.PARAMETER SubkeyEnterScript
 Script block for processing when subkeys are entered.
 Invoked with stack of keys as argument.
-.PARAMETER SubkeysExitScript
+Suggested parameter specification is Param([System.Collections.Stack]$Stack).
+.PARAMETER SubkeyExitScript
 Script block for processing when subkeys are exited.
 Invoked with stack of keys as argument.
+Suggested parameter specification is Param([System.Collections.Stack]$Stack).
 .INPUTS
 Vdf tokens (typically, the output of Split-SteamVdf).
 .OUTPUTS
@@ -713,10 +727,10 @@ https://developer.valvesoftware.com/wiki/KeyValues
 #>
 Function Invoke-SteamVdfVisitor {
     Param(
-        [Parameter(Mandatory)][ScriptBlock]$ValueScript,
-        [Parameter(Mandatory)][ScriptBlock]$SubkeysEnterScript,
-        [Parameter(Mandatory)][ScriptBlock]$SubkeysExitScript,
-        [Parameter(Mandatory, ValueFromPipeline)][String]$Token
+        [ScriptBlock]$ValueScript = {},
+        [ScriptBlock]$SubkeyEnterScript = {},
+        [ScriptBlock]$SubkeyExitScript = {},
+        [Parameter(Mandatory, ValueFromPipeline)][AllowEmptyString()][String]$Token
     )
     Begin {
         $key = $null
@@ -725,9 +739,9 @@ Function Invoke-SteamVdfVisitor {
     Process {
         If ( "{" -Eq $Token ) {
             If ( $null -Eq $key ) {
-                Throw "Subkeys without key at $($stack -Join " < ")."
+                Throw "Subkey without key at $($stack -Join " < ")."
             }
-            $SubkeysEnterScript.Invoke($stack)
+            $SubkeyEnterScript.Invoke($stack)
             $key = $null
         }
         ElseIf ( "}" -Eq $Token ) {
@@ -737,7 +751,7 @@ Function Invoke-SteamVdfVisitor {
             If ( $stack.Count -Eq 0 ) {
                 Throw "Too many }."
             }
-            $SubkeysExitScript.Invoke($stack)
+            $SubkeyExitScript.Invoke($stack)
             $stack.Pop() | Out-Null
             $key = $null
         }
@@ -751,25 +765,14 @@ Function Invoke-SteamVdfVisitor {
             $key = $null
         }
     }
-}
-
-Function Format-SteamVdfSubkeysEnter {
-    Param([System.Collections.Stack]$Stack)
-    [String]$tabs = "`t" * ($Stack.Count - 1)
-    "$tabs$($Stack.Peek())"
-    "$tabs{"
-}
-
-Function Format-SteamVdfSubkeysExit {
-    Param([System.Collections.Stack]$Stack)
-    [String]$tabs = "`t" * ($Stack.Count - 1)
-    "$tabs}"
-}
-
-Function Format-SteamVdfValue {
-    Param([System.Collections.Stack]$Stack, [String]$Value)
-    [String]$tabs = "`t" * ($Stack.Count - 1)
-    "$tabs$($stack.Peek())`t`t$Value"
+    End {
+        If ( $null -Ne $key ) {
+            Throw "Key at $($stack -Join " < ") has missing or incomplete value."
+        }
+        If ( $stack.Count -Ne 0 ) {
+            Throw "Key at $($stack -Join " < ") is missing }."
+        }
+    }
 }
 
 <#
@@ -784,10 +787,102 @@ Reformatted lines.
 #>
 Function Format-SteamVdf {
     Param([Parameter(Mandatory, ValueFromPipeline)][String]$Line)
+    Begin {
+        Function Format-SteamVdfToken {
+            Param([Parameter(Mandatory)][AllowEmptyString()][String]$Token)
+            $escaped = $Token.Replace('\', '\\').Replace("`n", '\n').Replace("`t", '\t').Replace('"', '\"')
+            "`"$escaped`""
+        }
+        [ScriptBlock]$SubkeyEnterScript = {
+            Param([System.Collections.Stack]$Stack)
+            [String]$tabs = "`t" * ($Stack.Count - 1)
+            "$tabs$(Format-SteamVdfToken($Stack.Peek()))"
+            "$tabs{"
+        }
+        [ScriptBlock]$SubkeyExitScript = {
+            Param([System.Collections.Stack]$Stack)
+            [String]$tabs = "`t" * ($Stack.Count - 1)
+            "$tabs}"
+        }
+        [ScriptBlock]$ValueScript = {
+            Param([System.Collections.Stack]$Stack, [AllowEmptyString()][String]$Value)
+            [String]$tabs = "`t" * ($Stack.Count - 1)
+            "$tabs$(Format-SteamVdfToken($stack.Peek()))`t`t$(Format-SteamVdfToken($Value))"
+        }        
+    }
     End {
         $Input | Split-SteamVdf | Invoke-SteamVdfVisitor `
-            -SubkeysEnterScript ${Function:Format-SteamVdfSubkeysEnter} `
-            -SubkeysExitScript ${Function:Format-SteamVdfSubkeysExit} `
-            -ValueScript ${Function:Format-SteamVdfValue}
+            -SubkeyEnterScript $SubkeyEnterScript `
+            -SubkeyExitScript $SubkeyExitScript `
+            -ValueScript $ValueScript
+    }
+}
+
+<#
+.SYNOPSIS
+Find value for a given key location.
+.DESCRIPTION
+Find value for a given key location.
+.PARAMETER Location
+The location is given as an array, starting from root key.
+.INPUTS
+Lines of the file.
+.OUTPUTS
+All values for the given key.
+If you only need the first value, pipe the output through Select-Object -First 1.
+Otherwise, the entire file will be processed.
+#>
+Function Get-SteamVdfValue {
+    Param(
+        [Parameter(Mandatory)][String[]]$Location,
+        [Parameter(Mandatory, ValueFromPipeline)][String]$Line
+    )
+    Begin {
+        [String[]]$stacklocation = @($Location)
+        [Array]::Reverse($stacklocation)
+        [ScriptBlock]$ValueScript = {
+            Param([System.Collections.Stack]$Stack, [AllowEmptyString()][String]$Value)
+            If ( $null -Eq (Compare-Object @($Stack) $stacklocation -SyncWindow 0) ) {
+                Write-Output $Value
+            }
+        }
+    }
+    End {
+        $Input | Split-SteamVdf | Invoke-SteamVdfVisitor -ValueScript $ValueScript
+    }
+}
+
+
+<#
+.SYNOPSIS
+Find subkeys for a given key location.
+.DESCRIPTION
+Find subkeys for a given key location.
+.PARAMETER Location
+The location is given as an array, starting from root key.
+.INPUTS
+Lines of the file.
+.OUTPUTS
+All subkeys for the given key.
+If you only need the first value, pipe the output through Select-Object -First 1.
+Otherwise, the entire file will be processed.
+#>
+Function Get-SteamVdfSubkey {
+    Param(
+        [Parameter(Mandatory)][String[]]$Location,
+        [Parameter(Mandatory, ValueFromPipeline)][String]$Line
+    )
+    Begin {
+        [String[]]$stacklocation = @($Location)
+        [Array]::Reverse($stacklocation)
+        [ScriptBlock]$SubkeyEnterScript = {
+            Param([System.Collections.Stack]$Stack)
+            If ( $null -Eq (Compare-Object @($Stack | Select-Object -Skip 1) $stacklocation -SyncWindow 0) ) {
+                Write-Output $Stack.Peek()
+            }
+        }
+    }
+    End {
+        $Input | Split-SteamVdf | Invoke-SteamVdfVisitor -SubkeyEnterScript $SubkeyEnterScript
     }
 }
