@@ -50,6 +50,9 @@ even though unlikely, there's always a chance that something breaks.
 * The [steam guide](https://steamcommunity.com/sharedfiles/filedetails/?id=1753474173)
   by Wirdjos.
 
+* The [SteamScreenshotImporter](https://github.com/zaevi/SteamScreenshotImporter/)
+  by zaevi.
+
 * The [SteaScree](https://github.com/awthwathje/SteaScree) project
   has inspired and influenced SteamScreenshotUtils in many ways.
   There are several features of SteaScree lacking in this project:
