@@ -516,10 +516,10 @@ Function Install-SteamScreenshot {
             Return
         }
         [String]$newscreenshotname = If ( $WhatIfPreference ) {
-            (Get-SteamScreenshotName -DateTime $FileInfo.LastWriteTime) -f "?"  # counter not yet final
+            (Get-SteamScreenshotName -DateTime $(Get-Date)) -f "?"  # counter not yet final
         }
         Else {
-            Find-SteamNonExistingScreenshotName -ScreenshotsPath $screenshots -DateTime $FileInfo.LastWriteTime
+            Find-SteamNonExistingScreenshotName -ScreenshotsPath $screenshots -DateTime $(Get-Date)
         }
         & {
             [String]$newscreenshot = Join-Path $screenshots $newscreenshotname

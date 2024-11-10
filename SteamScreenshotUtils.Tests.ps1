@@ -3,6 +3,9 @@ BeforeAll {
     Mock -CommandName "Get-SteamRegistryRoot" `
         -ModuleName "SteamScreenshotUtils" `
         -MockWith { Return "TestRegistry:\Steam" }
+    Mock -CommandName "Get-Date" `
+        -ModuleName "SteamScreenshotUtils" `
+        -MockWith { Return $(Get-Date -Year 1970 -Month 1 -Day 1 -Hour 0 -Minute 0 -Second 0) }
 
     Function Install-MockSteam {
         Param(
@@ -209,11 +212,6 @@ Describe "Install-Screenshots" {
         $image.Save($(Join-Path $TestDrive "testportrait.jpg"), [System.Drawing.Imaging.ImageFormat]::Jpeg)
         $image.Dispose()
         New-Item -Path "TestDrive:\invalid.jpg"
-        Set-ItemProperty -Path "TestDrive:\test.jpg" -Name LastWriteTime -Value $(Get-Date -Date "2024-01-01 00:00:00")
-        Set-ItemProperty -Path "TestDrive:\test.png" -Name LastWriteTime -Value $(Get-Date -Date "2024-01-01 00:00:01")
-        Set-ItemProperty -Path "TestDrive:\testlarge.jpg" -Name LastWriteTime -Value $(Get-Date -Date "2024-01-01 00:00:02")
-        Set-ItemProperty -Path "TestDrive:\testportrait.jpg" -Name LastWriteTime -Value $(Get-Date -Date "2024-01-01 00:00:03")
-        Set-ItemProperty -Path "TestDrive:\invalid.jpg" -Name LastWriteTime -Value $(Get-Date -Date "2024-01-01 00:00:04")
     }
     Context "Steam not installed" {
         It "Cannot find path" {
@@ -251,8 +249,8 @@ Describe "Install-Screenshots" {
             { Get-Item "TestDrive:\test.jpg" | Install-SteamScreenshot -UserId 789789789 -AppId 456456456 -ThumbnailQuality 101 } | Should -Throw "Cannot validate argument*"
         }
         It "WhatIf" {
-            $screenshot = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\20240101000000_1.jpg"
-            $thumbnail = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\thumbnails\20240101000000_1.jpg"
+            $screenshot = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\19700101000000_1.jpg"
+            $thumbnail = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\thumbnails\19700101000000_1.jpg"
             Get-Item "TestDrive:\test.jpg" | Install-SteamScreenshot -UserId 789789789 -AppId 456456456 -WhatIf | Should -BeNullOrEmpty
             Test-Path $screenshot | Should -BeFalse
             Test-Path $thumbnail | Should -BeFalse
@@ -260,8 +258,8 @@ Describe "Install-Screenshots" {
         It "Jpeg" {
             $screenshots = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots"
             $thumbnails = Join-Path $screenshots "thumbnails"
-            $screenshot = Join-Path $screenshots "20240101000000_1.jpg"
-            $thumbnail = Join-Path $thumbnails "20240101000000_1.jpg"
+            $screenshot = Join-Path $screenshots "19700101000000_1.jpg"
+            $thumbnail = Join-Path $thumbnails "19700101000000_1.jpg"
             Test-Path $screenshots | Should -BeFalse
             Test-Path $thumbnails | Should -BeFalse
             Test-Path $screenshot | Should -BeFalse
@@ -283,8 +281,8 @@ Describe "Install-Screenshots" {
         It "Png" {
             $screenshots = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots"
             $thumbnails = Join-Path $screenshots "thumbnails"
-            $screenshot = Join-Path $screenshots "20240101000001_1.jpg"
-            $thumbnail = Join-Path $thumbnails "20240101000001_1.jpg"
+            $screenshot = Join-Path $screenshots "19700101000000_2.jpg"
+            $thumbnail = Join-Path $thumbnails "19700101000000_2.jpg"
             Test-Path $screenshots | Should -BeTrue # from previous test
             Test-Path $thumbnails | Should -BeTrue # from previous test
             Test-Path $screenshot | Should -BeFalse
@@ -302,8 +300,8 @@ Describe "Install-Screenshots" {
             $thumbnailimage.Dispose()
         }
         It "Large" {
-            $screenshot = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\20240101000002_1.jpg"
-            $thumbnail = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\thumbnails\20240101000002_1.jpg"
+            $screenshot = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\19700101000000_3.jpg"
+            $thumbnail = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\thumbnails\19700101000000_3.jpg"
             Test-Path $screenshot | Should -BeFalse
             Test-Path $thumbnail | Should -BeFalse
             Get-Item "TestDrive:\testlarge.jpg" | Install-SteamScreenshot -UserId 789789789 -AppId 456456456 | Should -Be $screenshot, $thumbnail
@@ -319,8 +317,8 @@ Describe "Install-Screenshots" {
             $thumbnailimage.Dispose()
         }
         It "Portrait" {
-            $screenshot = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\20240101000003_1.jpg"
-            $thumbnail = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\thumbnails\20240101000003_1.jpg"
+            $screenshot = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\19700101000000_4.jpg"
+            $thumbnail = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\thumbnails\19700101000000_4.jpg"
             Test-Path $screenshot | Should -BeFalse
             Test-Path $thumbnail | Should -BeFalse
             Get-Item "TestDrive:\testportrait.jpg" | Install-SteamScreenshot -UserId 789789789 -AppId 456456456 | Should -Be $screenshot, $thumbnail
@@ -336,8 +334,8 @@ Describe "Install-Screenshots" {
             $thumbnailimage.Dispose()
         }
         It "Invalid image" {
-            $screenshot = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\20240101000000_2.jpg"
-            $thumbnail = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\thumbnails\20240101000000_2.jpg"
+            $screenshot = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\19700101000000_5.jpg"
+            $thumbnail = Join-Path $TestDrive "steam\userdata\789789789\760\remote\456456456\screenshots\thumbnails\19700101000000_5.jpg"
             $(Get-Item "TestDrive:\invalid.jpg" -ea Stop), $(Get-Item "TestDrive:\test.jpg" -ea Stop) | Install-SteamScreenshot -UserId 789789789 -AppId 456456456 | Should -Be $screenshot, $thumbnail
         }
         It "Invalid image with error action stop" {
