@@ -45,6 +45,12 @@ even though unlikely, there's always a chance that something breaks.
   Steam is able to update this file by itself when it notices the new files,
   although this may take a few seconds after starting up steam's screenshot manager.
 
+- In some cases the preview of recent screenshots
+  (typically, screenshots that you took with steam in the session
+  just before you added the custom ones)
+  gives an error following this process.
+  If this happens, just exit and open steam again, and the problem should go away.
+
 ## Related Projects
 
 * The [steam guide](https://steamcommunity.com/sharedfiles/filedetails/?id=1753474173)
